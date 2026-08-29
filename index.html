@@ -248,7 +248,7 @@ function applyFilters(){
 
 function renderKpis(){
   const total = filtered.length;
-  const pending = filtered.filter(c => c.status === '대응 필요').length;
+  const pending = filtered.filter(c => c.status === '진행중').length;
   const highRisk = filtered.filter(c => c.risk === '고위험').length;
   const closed = filtered.filter(c => c.status === '종결').length;
   document.getElementById('kpis').innerHTML = `
