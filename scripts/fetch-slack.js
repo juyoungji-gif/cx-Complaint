@@ -28,7 +28,7 @@ async function findChannelId(name) {
   let cursor;
   do {
     const data = await slackCall("conversations.list", {
-      types: "public_channel,private_channel",
+      types: "public_channel",
       limit: "200",
       ...(cursor ? { cursor } : {}),
     });
