@@ -322,7 +322,8 @@ function renderDonuts(){
 }
 
 function renderTypeRank(){
-  function renderCompensationChart(){
+}
+function renderCompensationChart(){
   const count = {};
   filtered.forEach(c => {
     const key = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정';
