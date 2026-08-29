@@ -1,7 +1,134 @@
 {
-  "updatedAt": null,
+  "updatedAt": "2026-08-29T07:08:33.817Z",
   "channel": "ishopcare_민원공유",
   "year": "2026",
-  "count": 0,
-  "messages": []
+  "count": 18,
+  "messages": [
+    {
+      "date": "2026-02-23",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-04-07",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-05-28",
+      "type": "환불지연",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-06-02",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-06-02",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-06-24",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-06-30",
+      "type": "기타",
+      "status": "완료",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-07-02",
+      "type": "기타",
+      "status": "완료",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-07-29",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-07-29",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-07-29",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-07-29",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-01",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-07",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-19",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-24",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-25",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    },
+    {
+      "date": "2026-08-25",
+      "type": "기타",
+      "status": "신규",
+      "team": "일반CS",
+      "assignee": "미배정"
+    }
+  ]
 }
