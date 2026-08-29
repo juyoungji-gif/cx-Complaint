@@ -1,6 +1,8 @@
-// 슬랙 #ishopcare_민원공유 채널 메시지를 가져와 data/complaints.json 으로 저장한다.
-// 저장소가 Public(무료 GitHub Pages 조건)이기 때문에, 개인정보 보호를 위해
-// 원문 텍스트는 저장하지 않고 "유형/상태/담당자/담당팀/날짜"로 분류한 결과만 저장한다.
+// 슬랙 #ishopcare_민원공유 채널의 워크플로 제출 메시지를 파싱해
+// data/complaints.json 으로 저장한다.
+// 워크플로 양식: 접수 일시 / 사업자번호/상호명 / 작성자 / 인입채널 /
+//              상담 일시 / 리스크 강도 / 민원유형 / 이슈 내용 /
+//              조치 내용 - 드롭다운 / 조치 내용 - 텍스트 입력 / 현재 상태
 
 const fs = require("fs");
 const path = require("path");
@@ -36,7 +38,7 @@ async function findChannelId(name) {
     if (found) return found.id;
     cursor = data.response_metadata && data.response_metadata.next_cursor;
   } while (cursor);
-  throw new Error(`채널을 찾지 못했습니다: #${name} (봇이 채널에 초대되어 있는지 확인하세요)`);
+  throw new Error(`채널을 찾지 못했습니다: #${name}`);
 }
 
 function yearStartTs(year) {
@@ -44,7 +46,7 @@ function yearStartTs(year) {
 }
 
 function tsToDate(ts) {
-  const d = new Date(Number(ts) * 1000 + 9 * 60 * 60 * 1000); // KST 보정
+  const d = new Date(Number(ts) * 1000 + 9 * 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
 }
 
@@ -64,43 +66,57 @@ async function fetchAllMessages(channelId, oldest) {
   return messages;
 }
 
-// ---- 분류 규칙 (필요에 맞게 키워드를 추가/수정하면 됩니다) ----
-function classifyType(text) {
-  if (/오배송/.test(text)) return "오배송";
-  if (/배송\s*지연|배송이\s*늦|배송\s*안\s*옴/.test(text)) return "배송지연";
-  if (/불량|파손|하자/.test(text)) return "상품불량";
-  if (/환불/.test(text)) return "환불지연";
-  if (/반품\s*거부|반품\s*불가/.test(text)) return "반품거부";
-  return "기타";
-}
+// ---- 워크플로 양식 필드 파싱 ----
+const FIELD_LABELS = [
+  "접수 일시",
+  "사업자번호/상호명",
+  "작성자",
+  "인입채널",
+  "상담 일시",
+  "리스크 강도",
+  "민원유형",
+  "이슈 내용",
+  "조치 내용 - 드롭다운",
+  "조치 내용 - 텍스트 입력",
+  "현재 상태",
+];
 
-function classifyStatus(text) {
-  if (/완료|처리\s*완료|해결/.test(text)) return "완료";
-  if (/보류|대기/.test(text)) return "보류";
-  if (/처리\s*중|진행\s*중|확인\s*중/.test(text)) return "처리중";
-  return "신규";
-}
-
-function classifyTeam(text) {
-  return /반품방어/.test(text) ? "반품방어" : "일반CS";
-}
-
-// "담당자: 홍길동", "담당 홍길동", "@홍길동" 등 흔한 패턴에서 담당자명 추출
-function extractAssignee(text) {
-  const patterns = [
-    /담당자\s*[:：]?\s*([가-힣]{2,4})/,
-    /담당\s*[:：]?\s*([가-힣]{2,4})/,
-    /처리자\s*[:：]?\s*([가-힣]{2,4})/,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) return m[1];
+function parseWorkflowMessage(text) {
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length);
+  const result = {};
+  let currentLabel = null;
+  let buffer = [];
+  const flush = () => {
+    if (currentLabel) result[currentLabel] = buffer.join("\n").trim();
+    buffer = [];
+  };
+  for (const line of lines) {
+    const matched = FIELD_LABELS.find((label) => line.startsWith(label));
+    if (matched) {
+      flush();
+      currentLabel = matched;
+    } else if (currentLabel) {
+      buffer.push(line);
+    }
   }
-  return "미배정";
+  flush();
+  return result;
 }
 
-// 혹시 모를 전화번호/이메일 패턴이 값에 섞여 있으면 마스킹 (안전장치)
+function normalizeRisk(value) {
+  if (!value) return "일반";
+  return /고위험/.test(value) ? "고위험" : "일반";
+}
+
+function normalizeStatus(value) {
+  if (!value) return "종결";
+  if (/불필요/.test(value)) return "종결";
+  if (/완료|종결/.test(value)) return "종결";
+  return "대응 필요";
+}
+
 function stripPII(value) {
+  if (!value) return value;
   return String(value)
     .replace(/\d{2,3}-?\d{3,4}-?\d{4}/g, "[제외]")
     .replace(/[\w.-]+@[\w.-]+\.\w+/g, "[제외]");
@@ -110,29 +126,52 @@ async function main() {
   const channelId = await findChannelId(CHANNEL_NAME);
   const oldest = yearStartTs(YEAR_FILTER);
   const raw = await fetchAllMessages(channelId, oldest);
+  console.log(`슬랙에서 받아온 원본 메시지 수: ${raw.length}`);
 
-  const messages = raw
-    .filter((m) => m.type === "message" && !m.subtype && m.text && m.text.trim())
-    .map((m) => ({
-      date: tsToDate(m.ts),
-      type: classifyType(m.text),
-      status: classifyStatus(m.text),
-      team: classifyTeam(m.text),
-      assignee: stripPII(extractAssignee(m.text)),
-    }))
-    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const EXCLUDED_SUBTYPES = new Set([
+    "channel_join", "channel_leave", "channel_topic", "channel_purpose",
+    "channel_name", "channel_archive", "channel_unarchive",
+    "pinned_item", "unpinned_item",
+  ]);
+
+  const cases = raw
+    .filter((m) => m.text && m.text.trim() && !EXCLUDED_SUBTYPES.has(m.subtype))
+    .map((m) => {
+      const parsed = parseWorkflowMessage(m.text);
+      if (!parsed["접수 일시"] && !parsed["사업자번호/상호명"]) return null; // 워크플로 양식이 아닌 일반 잡담 메시지는 제외
+
+      const [bizId, bizName] = (parsed["사업자번호/상호명"] || "/").split("/").map((s) => (s || "").trim());
+
+      return {
+        ts: m.ts,
+        date: (parsed["접수 일시"] || tsToDate(m.ts)).slice(0, 10),
+        bizId: stripPII(bizId) || "",
+        bizName: bizName || "",
+        author: stripPII(parsed["작성자"]) || "미상",
+        channel: parsed["인입채널"] || "기타",
+        consultTime: parsed["상담 일시"] || "",
+        risk: normalizeRisk(parsed["리스크 강도"]),
+        type: parsed["민원유형"] || "기타",
+        issue: parsed["이슈 내용"] || "",
+        actionSummary: parsed["조치 내용 - 드롭다운"] || "",
+        actionDetail: parsed["조치 내용 - 텍스트 입력"] || "",
+        status: normalizeStatus(parsed["현재 상태"]),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.ts) - Number(a.ts)); // 최신순
 
   const output = {
     updatedAt: new Date().toISOString(),
     channel: CHANNEL_NAME,
     year: YEAR_FILTER,
-    count: messages.length,
-    messages, // 원문 텍스트는 포함하지 않음 (개인정보 보호)
+    count: cases.length,
+    cases,
   };
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2), "utf-8");
-  console.log(`${messages.length}개의 메시지를 분류해 저장했습니다.`);
+  console.log(`${cases.length}건의 민원 케이스를 저장했습니다.`);
 }
 
 main().catch((err) => {
