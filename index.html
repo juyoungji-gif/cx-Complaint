@@ -253,7 +253,11 @@ function renderKpis(){
   const closed = filtered.filter(c => c.status === '종결').length;
   document.getElementById('kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">선택 기간 접수</div><div class="kpi-value tabular">${total}</div><div class="kpi-sub">전체 누적 ${allCases.length}건</div></div>
-    <div class="kpi"><div class="kpi-label">미처리 (대응 필요)</div><div class="kpi-value tabular" style="color:var(--danger)">${pending}</div><div class="kpi-sub">${total?Math.round(pending/total*100):0}% of 선택기간</div></div>
+        <div class="kpi">
+      <div class="kpi-label">진행중</div>
+      <div class="kpi-value tabular" style="color:var(--danger)">${pending}</div>
+      <div class="kpi-sub" style="line-height:1.5;">보상 검토 진행중 · 고객 회신 대기 · 연락 불가 등을 포함해요</div>
+    </div>
     <div class="kpi"><div class="kpi-label">고위험 VOC</div><div class="kpi-value tabular" style="color:var(--danger)">${highRisk}</div><div class="kpi-sub">${total?Math.round(highRisk/total*100):0}% of 선택기간</div></div>
     <div class="kpi"><div class="kpi-label">종결</div><div class="kpi-value tabular" style="color:var(--success)">${closed}</div><div class="kpi-sub">${total?Math.round(closed/total*100):0}% of 선택기간</div></div>
   `;
