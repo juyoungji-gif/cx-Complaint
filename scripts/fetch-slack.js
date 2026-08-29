@@ -3,6 +3,7 @@
 // 워크플로 양식: 접수 일시 / 사업자번호/상호명 / 작성자 / 인입채널 /
 //              상담 일시 / 리스크 강도 / 민원유형 / 이슈 내용 /
 //              조치 내용 - 드롭다운 / 조치 내용 - 텍스트 입력 / 현재 상태
+// + 스레드 댓글에 "최종 결과: ..." 가 등록되면 해당 건은 종결로 처리한다.
 
 const fs = require("fs");
 const path = require("path");
@@ -17,13 +18,23 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function slackCall(method, params) {
   const url = new URL(`https://slack.com/api/${method}`);
   Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
-  const data = await res.json();
-  if (!data.ok) throw new Error(`Slack API 오류 (${method}): ${data.error}`);
-  return data;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get("retry-after") || "2");
+      await sleep((retryAfter + 1) * 1000);
+      continue;
+    }
+    const data = await res.json();
+    if (!data.ok) throw new Error(`Slack API 오류 (${method}): ${data.error}`);
+    return data;
+  }
+  throw new Error(`Slack API 오류 (${method}): 반복적인 rate limit`);
 }
 
 async function findChannelId(name) {
@@ -64,6 +75,29 @@ async function fetchAllMessages(channelId, oldest) {
     cursor = data.response_metadata && data.response_metadata.next_cursor;
   } while (cursor);
   return messages;
+}
+
+// 스레드 댓글들을 가져와 "최종 결과: ..." 가 있는지 확인한다.
+async function fetchFinalResult(channelId, threadTs) {
+  let cursor;
+  let finalResult = null;
+  do {
+    const data = await slackCall("conversations.replies", {
+      channel: channelId,
+      ts: threadTs,
+      limit: "200",
+      ...(cursor ? { cursor } : {}),
+    });
+    for (const reply of data.messages || []) {
+      if (reply.ts === threadTs) continue; // 원본 메시지 자신은 제외
+      const cleaned = (reply.text || "").replace(/\*/g, "");
+      const m = cleaned.match(/최종\s*결과\s*[:：]?\s*(.+)/s);
+      if (m) finalResult = m[1].trim().split("\n")[0].trim();
+    }
+    cursor = data.response_metadata && data.response_metadata.next_cursor;
+    await sleep(350); // API 호출 간 짧은 대기 (rate limit 방지)
+  } while (cursor);
+  return finalResult;
 }
 
 // ---- 워크플로 양식 필드 파싱 ----
@@ -118,7 +152,7 @@ function normalizeStatus(value) {
   if (!value) return "종결";
   if (/불필요/.test(value)) return "종결";
   if (/완료|종결/.test(value)) return "종결";
-  return "대응 필요";
+  return "진행중";
 }
 
 function stripPII(value) {
@@ -140,32 +174,46 @@ async function main() {
     "pinned_item", "unpinned_item",
   ]);
 
-  const cases = raw
-    .filter((m) => m.text && m.text.trim() && !EXCLUDED_SUBTYPES.has(m.subtype))
-    .map((m) => {
-      const parsed = parseWorkflowMessage(m.text);
-      if (!parsed["접수 일시"] && !parsed["사업자번호/상호명"]) return null; // 워크플로 양식이 아닌 일반 잡담 메시지는 제외
+  const candidates = raw.filter((m) => m.text && m.text.trim() && !EXCLUDED_SUBTYPES.has(m.subtype));
 
-      const [bizId, bizName] = (parsed["사업자번호/상호명"] || "/").split("/").map((s) => (s || "").trim());
+  const cases = [];
+  for (const m of candidates) {
+    const parsed = parseWorkflowMessage(m.text);
+    if (!parsed["접수 일시"] && !parsed["사업자번호/상호명"]) continue; // 워크플로 양식이 아닌 메시지는 제외
 
-      return {
-        ts: m.ts,
-        date: (parsed["접수 일시"] || tsToDate(m.ts)).slice(0, 10),
-              bizId: bizId || "",
-        bizName: bizName || "",
-        author: stripPII(parsed["작성자"]) || "미상",
-        channel: parsed["인입채널"] || "기타",
-        consultTime: parsed["상담 일시"] || "",
-        risk: normalizeRisk(parsed["리스크 강도"]),
-        type: parsed["민원유형"] || "기타",
-        issue: parsed["이슈 내용"] || "",
-        actionSummary: parsed["조치 내용 - 드롭다운"] || "",
-        actionDetail: parsed["조치 내용 - 텍스트 입력"] || "",
-        status: normalizeStatus(parsed["현재 상태"]),
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => Number(b.ts) - Number(a.ts)); // 최신순
+    const [bizId, bizName] = (parsed["사업자번호/상호명"] || "/").split("/").map((s) => (s || "").trim());
+    let status = normalizeStatus(parsed["현재 상태"]);
+    let finalResult = null;
+
+    // 댓글(스레드)에 달릴 수 있는 메시지에만 확인 (reply_count가 있는 경우)
+    if (m.reply_count && m.reply_count > 0) {
+      try {
+        finalResult = await fetchFinalResult(channelId, m.ts);
+        if (finalResult) status = "종결";
+      } catch (e) {
+        console.error(`스레드 조회 실패 (ts=${m.ts}):`, e.message);
+      }
+    }
+
+    cases.push({
+      ts: m.ts,
+      date: (parsed["접수 일시"] || tsToDate(m.ts)).slice(0, 10),
+      bizId: bizId || "",
+      bizName: bizName || "",
+      author: stripPII(parsed["작성자"]) || "미상",
+      channel: parsed["인입채널"] || "기타",
+      consultTime: parsed["상담 일시"] || "",
+      risk: normalizeRisk(parsed["리스크 강도"]),
+      type: parsed["민원유형"] || "기타",
+      issue: parsed["이슈 내용"] || "",
+      actionSummary: parsed["조치 내용 - 드롭다운"] || "",
+      actionDetail: parsed["조치 내용 - 텍스트 입력"] || "",
+      status,
+      finalResult: finalResult || "",
+    });
+  }
+
+  cases.sort((a, b) => Number(b.ts) - Number(a.ts));
 
   const output = {
     updatedAt: new Date().toISOString(),
