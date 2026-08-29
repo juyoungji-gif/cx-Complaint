@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>민원 대응 대시보드 · iShopCare</title>
+<style>
+  :root{
+    --ink:#1F2A24; --slate:#5B6B72; --line:#D8D2C0; --paper:#F1EFE6;
+    --moss:#3E5C4A; --moss-soft:#7C9884; --rust:#B5502F; --amber:#C08A2E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;}
+  .wrap{max-width:960px; margin:0 auto; padding:32px 20px;}
+  .eyebrow{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--moss); font-weight:700; margin-bottom:6px;}
+  h1{font-size:26px; margin:0 0 4px;}
+  .sub{font-size:12px; color:var(--slate); margin-bottom:24px;}
+  button{cursor:pointer; font-family:inherit;}
+  .filter-btn{display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff9; font-size:14px; font-weight:600; color:var(--ink); margin-bottom:20px;}
+  .filter-btn.active{background:var(--moss); color:#fff; border-color:var(--moss);}
+  .kpis{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:28px;}
+  .kpi{flex:1; min-width:140px; border:1px solid var(--line); background:#fff9; border-radius:10px; padding:14px 16px;}
+  .kpi-label{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--slate); font-weight:600; margin-bottom:6px;}
+  .kpi-value{font-size:28px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .grid2{display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:28px;}
+  @media(min-width:720px){.grid2{grid-template-columns:1fr 1fr;}}
+  .card{border:1px solid var(--line); background:#fff9; border-radius:10px; padding:16px;}
+  .card-title{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--slate); font-weight:700; margin-bottom:12px;}
+  .bar-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;}
+  .bar-label{width:78px; flex-shrink:0; color:var(--ink);}
+  .bar-track{flex:1; background:var(--line); border-radius:4px; height:14px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:4px;}
+  .bar-value{width:28px; text-align:right; font-variant-numeric:tabular-nums; color:var(--slate);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{padding:8px 10px; text-align:left;}
+  th{color:var(--slate); font-weight:600; font-size:11px; text-transform:uppercase; border-bottom:1px solid var(--line);}
+  tr+tr td{border-top:1px solid var(--line);}
+  .tag{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:#F0E4DE; color:var(--rust);}
+  .num-신규{color:var(--rust);} .num-처리중{color:var(--amber);} .num-완료{color:var(--moss);} .num-보류{color:var(--slate);}
+  .state{text-align:center; padding:40px; color:var(--slate); font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Complaint Ops · #ishopcare_민원공유</div>
+  <h1>민원 대응 대시보드 · 2026년</h1>
+  <div class="sub" id="updatedAt">데이터를 불러오는 중...</div>
+
+  <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">🛡 반품방어 담당자만 보기</button>
+
+  <div id="content">
+    <div class="state">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+const TYPE_COLORS = { "배송지연":"#B5502F", "상품불량":"#C08A2E", "환불지연":"#3E5C4A", "반품거부":"#5B6B72", "오배송":"#7C9884", "기타":"#8A6E4B" };
+const STATUS_COLORS = { "신규":"#B5502F", "처리중":"#C08A2E", "완료":"#3E5C4A", "보류":"#5B6B72" };
+
+let allMessages = [];
+let onlyReturnDefense = false;
+
+function toggleFilter(){
+  onlyReturnDefense = !onlyReturnDefense;
+  document.getElementById('filterBtn').classList.toggle('active', onlyReturnDefense);
+  render();
+}
+
+function render(){
+  const rows = onlyReturnDefense ? allMessages.filter(r => r.team === '반품방어') : allMessages;
+  const total = rows.length;
+  const inProgress = rows.filter(r => r.status === '처리중').length;
+  const done = rows.filter(r => r.status === '완료').length;
+  const rd = rows.filter(r => r.team === '반품방어').length;
+  const doneRate = total ? Math.round(done / total * 100) : 0;
+
+  const typeCount = {};
+  rows.forEach(r => typeCount[r.type] = (typeCount[r.type]||0) + 1);
+  const typeEntries = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
+  const maxType = Math.max(1, ...typeEntries.map(e=>e[1]));
+
+  const statusOrder = ['신규','처리중','완료','보류'];
+  const statusCount = {}; statusOrder.forEach(s => statusCount[s]=0);
+  rows.forEach(r => statusCount[r.status] = (statusCount[r.status]||0) + 1);
+  const maxStatus = Math.max(1, ...Object.values(statusCount));
+
+  const assigneeMap = {};
+  rows.forEach(r => {
+    const key = r.assignee || '미배정';
+    if(!assigneeMap[key]) assigneeMap[key] = {name:key, 신규:0, 처리중:0, 완료:0, 보류:0, team:r.team};
+    assigneeMap[key][r.status] = (assigneeMap[key][r.status]||0) + 1;
+  });
+  const assignees = Object.values(assigneeMap).sort((a,b)=>
+    (b.신규+b.처리중+b.완료+b.보류) - (a.신규+a.처리중+a.완료+a.보류));
+
+  document.getElementById('content').innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-label">전체 민원</div><div class="kpi-value">${total}</div></div>
+      <div class="kpi"><div class="kpi-label">처리중</div><div class="kpi-value" style="color:#C08A2E">${inProgress}</div></div>
+      <div class="kpi"><div class="kpi-label">완료율</div><div class="kpi-value" style="color:#3E5C4A">${doneRate}%</div></div>
+      <div class="kpi"><div class="kpi-label">반품방어 담당</div><div class="kpi-value" style="color:#B5502F">${rd}</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">유형별 분포</div>
+        ${typeEntries.map(([name,val]) => `
+          <div class="bar-row">
+            <div class="bar-label">${name}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${val/maxType*100}%; background:${TYPE_COLORS[name]||'#5B6B72'}"></div></div>
+            <div class="bar-value">${val}</div>
+          </div>`).join('') || '<div class="state">데이터 없음</div>'}
+      </div>
+      <div class="card">
+        <div class="card-title">상태별 현황</div>
+        ${statusOrder.map(name => `
+          <div class="bar-row">
+            <div class="bar-label">${name}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${statusCount[name]/maxStatus*100}%; background:${STATUS_COLORS[name]}"></div></div>
+            <div class="bar-value">${statusCount[name]}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">담당자별 처리 현황</div>
+      <table>
+        <thead><tr><th>담당자</th><th>팀</th><th style="text-align:right">신규</th><th style="text-align:right">처리중</th><th style="text-align:right">완료</th><th style="text-align:right">보류</th></tr></thead>
+        <tbody>
+          ${assignees.map(a => `
+            <tr>
+              <td>${a.name}</td>
+              <td>${a.team === '반품방어' ? '<span class="tag">🛡 반품방어</span>' : '<span style="color:#5B6B72;font-size:12px">일반CS</span>'}</td>
+              <td style="text-align:right" class="num-신규">${a.신규||0}</td>
+              <td style="text-align:right" class="num-처리중">${a.처리중||0}</td>
+              <td style="text-align:right" class="num-완료">${a.완료||0}</td>
+              <td style="text-align:right" class="num-보류">${a.보류||0}</td>
+            </tr>`).join('') || `<tr><td colspan="6" class="state">표시할 데이터가 없습니다.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+fetch('data/complaints.json?_=' + Date.now())
+  .then(res => { if(!res.ok) throw new Error('데이터 파일을 찾을 수 없습니다.'); return res.json(); })
+  .then(data => {
+    allMessages = data.messages || [];
+    const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleString('ko-KR') : '알 수 없음';
+    document.getElementById('updatedAt').textContent = `마지막 업데이트: ${updated} · 총 ${data.count||0}건 · 개인 식별정보는 저장하지 않습니다.`;
+    render();
+  })
+  .catch(err => {
+    document.getElementById('updatedAt').textContent = '데이터를 불러오지 못했습니다.';
+    document.getElementById('content').innerHTML = `<div class="state">${err.message}<br>GitHub Actions가 아직 한 번도 실행되지 않았을 수 있어요. Actions 탭에서 수동 실행해보세요.</div>`;
+  });
+</script>
+</body>
+</html>
