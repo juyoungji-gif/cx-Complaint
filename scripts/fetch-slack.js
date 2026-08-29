@@ -151,7 +151,7 @@ async function main() {
       return {
         ts: m.ts,
         date: (parsed["접수 일시"] || tsToDate(m.ts)).slice(0, 10),
-        bizId: stripPII(bizId) || "",
+              bizId: bizId || "",
         bizName: bizName || "",
         author: stripPII(parsed["작성자"]) || "미상",
         channel: parsed["인입채널"] || "기타",
