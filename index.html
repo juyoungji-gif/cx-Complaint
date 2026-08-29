@@ -6,151 +6,439 @@
 <title>민원 대응 대시보드 · iShopCare</title>
 <style>
   :root{
-    --ink:#1F2A24; --slate:#5B6B72; --line:#D8D2C0; --paper:#F1EFE6;
-    --moss:#3E5C4A; --moss-soft:#7C9884; --rust:#B5502F; --amber:#C08A2E;
+    --bg:#EEF0F4; --surface:#FFFFFF; --line:#E1E4EA; --line-soft:#EDEFF3;
+    --ink:#14181F; --muted:#697079; --muted2:#98A0AB;
+    --primary:#2954E0; --primary-soft:#E8EDFC; --primary-deep:#1D3FB0;
+    --danger:#D9483C; --danger-soft:#FBEAE8;
+    --warning:#C98A1F; --warning-soft:#FBF1DD;
+    --success:#1F8A5F; --success-soft:#E6F5EE;
+    --radius:12px;
+    --shadow:0 1px 2px rgba(20,24,31,.04), 0 4px 14px rgba(20,24,31,.05);
   }
   *{box-sizing:border-box;}
-  body{margin:0; background:var(--paper); color:var(--ink); font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;}
-  .wrap{max-width:960px; margin:0 auto; padding:32px 20px;}
-  .eyebrow{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--moss); font-weight:700; margin-bottom:6px;}
-  h1{font-size:26px; margin:0 0 4px;}
-  .sub{font-size:12px; color:var(--slate); margin-bottom:24px;}
-  button{cursor:pointer; font-family:inherit;}
-  .filter-btn{display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff9; font-size:14px; font-weight:600; color:var(--ink); margin-bottom:20px;}
-  .filter-btn.active{background:var(--moss); color:#fff; border-color:var(--moss);}
-  .kpis{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:28px;}
-  .kpi{flex:1; min-width:140px; border:1px solid var(--line); background:#fff9; border-radius:10px; padding:14px 16px;}
-  .kpi-label{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--slate); font-weight:600; margin-bottom:6px;}
-  .kpi-value{font-size:28px; font-weight:700; font-variant-numeric:tabular-nums;}
-  .grid2{display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:28px;}
-  @media(min-width:720px){.grid2{grid-template-columns:1fr 1fr;}}
-  .card{border:1px solid var(--line); background:#fff9; border-radius:10px; padding:16px;}
-  .card-title{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--slate); font-weight:700; margin-bottom:12px;}
-  .bar-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;}
-  .bar-label{width:78px; flex-shrink:0; color:var(--ink);}
-  .bar-track{flex:1; background:var(--line); border-radius:4px; height:14px; overflow:hidden;}
-  .bar-fill{height:100%; border-radius:4px;}
-  .bar-value{width:28px; text-align:right; font-variant-numeric:tabular-nums; color:var(--slate);}
-  table{width:100%; border-collapse:collapse; font-size:13px;}
-  th,td{padding:8px 10px; text-align:left;}
-  th{color:var(--slate); font-weight:600; font-size:11px; text-transform:uppercase; border-bottom:1px solid var(--line);}
-  tr+tr td{border-top:1px solid var(--line);}
-  .tag{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:#F0E4DE; color:var(--rust);}
-  .num-신규{color:var(--rust);} .num-처리중{color:var(--amber);} .num-완료{color:var(--moss);} .num-보류{color:var(--slate);}
-  .state{text-align:center; padding:40px; color:var(--slate); font-size:14px;}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .tabular{font-variant-numeric:tabular-nums;}
+  .wrap{max-width:1280px; margin:0 auto; padding:24px 20px 60px;}
+
+  .topbar{display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:20px;}
+  .eyebrow{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--primary); font-weight:700; margin-bottom:6px;}
+  h1{font-size:23px; margin:0; letter-spacing:-.01em;}
+  .updated{font-size:12px; color:var(--muted); margin-top:4px;}
+
+  .period-select{display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:6px 8px; box-shadow:var(--shadow);}
+  select{border:none; background:transparent; font-size:13px; font-weight:600; color:var(--ink); padding:4px 6px; cursor:pointer;}
+  select:focus{outline:2px solid var(--primary); border-radius:6px;}
+  .date-input{border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-size:12px; width:112px;}
+
+  .kpis{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:16px;}
+  @media(min-width:760px){.kpis{grid-template-columns:repeat(4,1fr);}}
+  .kpi{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;}
+  .kpi-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:10px;}
+  .kpi-value{font-size:32px; font-weight:800; letter-spacing:-.02em;}
+  .kpi-sub{font-size:11px; color:var(--muted2); margin-top:4px;}
+
+  .row{display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px;}
+  @media(min-width:960px){.row-trend{grid-template-columns:2fr 1fr;}}
+  @media(min-width:960px){.row-tables{grid-template-columns:1fr 1.6fr;}}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px;}
+  .card-title{font-size:13px; font-weight:700; margin-bottom:2px;}
+  .card-sub{font-size:11px; color:var(--muted); margin-bottom:14px;}
+
+  /* trend chart */
+  .trend-chart{display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:10px;}
+  .trend-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end;}
+  .trend-bar{width:100%; max-width:34px; background:var(--primary); border-radius:5px 5px 2px 2px; transition:height .2s;}
+  .trend-val{font-size:11px; color:var(--muted); font-weight:700;}
+  .trend-label{font-size:10px; color:var(--muted2);}
+
+  /* donut */
+  .donut-row{display:flex; align-items:center; gap:16px;}
+  .donut{border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;}
+  .donut-hole{border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px;}
+  .legend{display:flex; flex-direction:column; gap:7px; font-size:12px;}
+  .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+
+  /* rank table */
+  .rank-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .rank-table th{text-align:left; color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase; padding:0 6px 8px; border-bottom:1px solid var(--line);}
+  .rank-table td{padding:8px 6px; border-bottom:1px solid var(--line-soft);}
+  .rank-table tr:last-child td{border-bottom:none;}
+  .rank-num{color:var(--muted2); width:18px;}
+  .mini-bar{background:var(--primary-soft); height:6px; border-radius:3px; margin-top:4px; overflow:hidden;}
+  .mini-bar-fill{height:100%; background:var(--primary); border-radius:3px;}
+
+  /* heatmap */
+  .heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,12px); gap:3px; overflow-x:auto; padding-bottom:6px;}
+  .heat-cell{width:12px; height:12px; border-radius:3px; background:var(--line-soft);}
+  .heat-legend{display:flex; align-items:center; gap:4px; font-size:10px; color:var(--muted); margin-top:8px;}
+
+  /* filters + table */
+  .filters{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .filters select, .filters input[type=text]{padding:7px 10px; border-radius:8px; border:1px solid var(--line); font-size:12.5px; background:var(--surface);}
+  .filters input[type=text]{flex:1; min-width:150px;}
+
+  table.main{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.main th{text-align:left; padding:8px 8px; color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase; border-bottom:1px solid var(--line);}
+  table.main td{padding:9px 8px; border-bottom:1px solid var(--line-soft);}
+  table.main tbody tr{cursor:pointer;}
+  table.main tbody tr:hover{background:var(--line-soft);}
+  table.main tbody tr.selected{background:var(--primary-soft);}
+  .tag{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap;}
+  .tag-일반{background:var(--warning-soft); color:var(--warning);}
+  .tag-고위험{background:var(--danger-soft); color:var(--danger);}
+  .tag-종결{background:var(--success-soft); color:var(--success);}
+  .tag-대응{background:var(--danger-soft); color:var(--danger);}
+
+  .pagination{display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:10px; font-size:12px; color:var(--muted);}
+  .pagination button{border:1px solid var(--line); background:var(--surface); border-radius:6px; width:26px; height:26px; cursor:pointer; color:var(--ink);}
+  .pagination button:disabled{opacity:.35; cursor:default;}
+
+  .detail-panel{position:sticky; top:20px;}
+  .detail-title{font-size:16px; font-weight:800; margin-bottom:6px;}
+  .detail-row{display:grid; grid-template-columns:82px 1fr; gap:6px; font-size:12.5px; margin-bottom:7px;}
+  .detail-row .k{color:var(--muted);}
+  .detail-section{margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
+  .detail-section h4{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:0 0 8px; font-weight:700;}
+  .detail-section ul{margin:0; padding-left:16px; font-size:12.5px; line-height:1.65;}
+  .empty{color:var(--muted2); font-size:13px; text-align:center; padding:30px;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Complaint Ops · #ishopcare_민원공유</div>
-  <h1>민원 대응 대시보드 · 2026년</h1>
-  <div class="sub" id="updatedAt">데이터를 불러오는 중...</div>
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Complaint Ops · #ishopcare_민원공유</div>
+      <h1>민원 대응 대시보드</h1>
+      <div class="updated" id="updatedAt">불러오는 중...</div>
+    </div>
+    <div class="period-select">
+      <select id="periodSelect">
+        <option value="today">오늘</option>
+        <option value="7d">최근 7일</option>
+        <option value="month">이번 달</option>
+        <option value="all">전체 기간</option>
+        <option value="custom">직접 지정</option>
+      </select>
+      <input type="text" id="fromDate" class="date-input" placeholder="YYYY-MM-DD" style="display:none">
+      <span id="rangeTilde" style="display:none; color:var(--muted)">~</span>
+      <input type="text" id="toDate" class="date-input" placeholder="YYYY-MM-DD" style="display:none">
+    </div>
+  </div>
 
-  <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">🛡 반품방어 담당자만 보기</button>
+  <div class="kpis" id="kpis"></div>
 
-  <div id="content">
-    <div class="state">불러오는 중...</div>
+  <div class="row row-trend">
+    <div class="card">
+      <div class="card-title">일자별 접수 추이</div>
+      <div class="card-sub" id="trendSub">선택 기간 내 일별 건수</div>
+      <div class="trend-chart" id="trendChart"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">채널 · 리스크 분포</div>
+      <div class="card-sub">인입채널 / 리스크 강도</div>
+      <div class="donut-row" id="channelDonut" style="margin-bottom:16px;"></div>
+      <div class="donut-row" id="riskDonut"></div>
+    </div>
+  </div>
+
+  <div class="row row-tables">
+    <div class="card">
+      <div class="card-title">민원유형별 순위</div>
+      <div class="card-sub">선택 기간 내 건수 기준</div>
+      <table class="rank-table" id="typeRankTable"></table>
+    </div>
+    <div class="card">
+      <div class="card-title">최근 90일 접수 히트맵</div>
+      <div class="card-sub">하루 단위 접수 건수 (진할수록 많음)</div>
+      <div class="heatmap" id="heatmap"></div>
+      <div class="heat-legend">
+        <span>적음</span>
+        <span class="heat-cell" style="background:var(--primary-soft)"></span>
+        <span class="heat-cell" style="background:#B9C8F5"></span>
+        <span class="heat-cell" style="background:#7C97EC"></span>
+        <span class="heat-cell" style="background:var(--primary)"></span>
+        <span>많음</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="grid-template-columns:1fr;">
+    <div style="display:grid; grid-template-columns:1fr; gap:14px;" id="tableGridWrap">
+      <div class="card">
+        <div class="filters">
+          <select id="fChannel"><option value="">전체 채널</option></select>
+          <select id="fRisk"><option value="">리스크 강도</option><option value="일반">일반</option><option value="고위험">고위험</option></select>
+          <select id="fType"><option value="">민원유형</option></select>
+          <select id="fStatus"><option value="">현재 상태</option><option value="종결">종결</option><option value="대응 필요">대응 필요</option></select>
+          <input type="text" id="fSearch" placeholder="상호명, 사업자번호 검색">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr; gap:14px;" id="mainSplit">
+          <div>
+            <table class="main">
+              <thead><tr><th>#</th><th>접수일</th><th>상호명</th><th>유형</th><th>채널</th><th>리스크</th><th>상태</th></tr></thead>
+              <tbody id="tbody"></tbody>
+            </table>
+            <div class="pagination" id="pagination"></div>
+          </div>
+          <div id="detailWrap"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-const TYPE_COLORS = { "배송지연":"#B5502F", "상품불량":"#C08A2E", "환불지연":"#3E5C4A", "반품거부":"#5B6B72", "오배송":"#7C9884", "기타":"#8A6E4B" };
-const STATUS_COLORS = { "신규":"#B5502F", "처리중":"#C08A2E", "완료":"#3E5C4A", "보류":"#5B6B72" };
+let allCases = [];
+let filtered = [];
+let selectedId = null;
+let currentPeriod = 'today';
+let page = 1;
+const PAGE_SIZE = 10;
 
-let allMessages = [];
-let onlyReturnDefense = false;
+function fmtDate(d){ return d.toISOString().slice(0,10); }
+function kstNow(){ return new Date(Date.now() + 9*60*60*1000); }
 
-function toggleFilter(){
-  onlyReturnDefense = !onlyReturnDefense;
-  document.getElementById('filterBtn').classList.toggle('active', onlyReturnDefense);
-  render();
+function periodRange(period){
+  const today = kstNow();
+  const end = fmtDate(today);
+  if(period === 'today') return [end, end];
+  if(period === '7d'){ const s = new Date(today); s.setDate(s.getDate()-6); return [fmtDate(s), end]; }
+  if(period === 'month'){ const s = new Date(today.getFullYear(), today.getMonth(), 1); return [fmtDate(s), end]; }
+  return [null, null];
 }
 
-function render(){
-  const rows = onlyReturnDefense ? allMessages.filter(r => r.team === '반품방어') : allMessages;
-  const total = rows.length;
-  const inProgress = rows.filter(r => r.status === '처리중').length;
-  const done = rows.filter(r => r.status === '완료').length;
-  const rd = rows.filter(r => r.team === '반품방어').length;
-  const doneRate = total ? Math.round(done / total * 100) : 0;
+document.getElementById('periodSelect').addEventListener('change', (e) => {
+  currentPeriod = e.target.value;
+  const isCustom = currentPeriod === 'custom';
+  document.getElementById('fromDate').style.display = isCustom ? 'inline-block' : 'none';
+  document.getElementById('toDate').style.display = isCustom ? 'inline-block' : 'none';
+  document.getElementById('rangeTilde').style.display = isCustom ? 'inline' : 'none';
+  if(!isCustom) applyFilters();
+});
+['fromDate','toDate'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(currentPeriod==='custom') applyFilters(); }));
 
-  const typeCount = {};
-  rows.forEach(r => typeCount[r.type] = (typeCount[r.type]||0) + 1);
-  const typeEntries = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
-  const maxType = Math.max(1, ...typeEntries.map(e=>e[1]));
+function applyFilters(){
+  const [pFrom, pTo] = currentPeriod === 'custom'
+    ? [document.getElementById('fromDate').value || null, document.getElementById('toDate').value || null]
+    : periodRange(currentPeriod);
 
-  const statusOrder = ['신규','처리중','완료','보류'];
-  const statusCount = {}; statusOrder.forEach(s => statusCount[s]=0);
-  rows.forEach(r => statusCount[r.status] = (statusCount[r.status]||0) + 1);
-  const maxStatus = Math.max(1, ...Object.values(statusCount));
+  const channel = document.getElementById('fChannel').value;
+  const risk = document.getElementById('fRisk').value;
+  const type = document.getElementById('fType').value;
+  const status = document.getElementById('fStatus').value;
+  const search = document.getElementById('fSearch').value.trim();
 
-  const assigneeMap = {};
-  rows.forEach(r => {
-    const key = r.assignee || '미배정';
-    if(!assigneeMap[key]) assigneeMap[key] = {name:key, 신규:0, 처리중:0, 완료:0, 보류:0, team:r.team};
-    assigneeMap[key][r.status] = (assigneeMap[key][r.status]||0) + 1;
+  filtered = allCases.filter(c => {
+    if(pFrom && c.date < pFrom) return false;
+    if(pTo && c.date > pTo) return false;
+    if(channel && c.channel !== channel) return false;
+    if(risk && c.risk !== risk) return false;
+    if(type && c.type !== type) return false;
+    if(status && c.status !== status) return false;
+    if(search && !(c.bizName.includes(search) || c.bizId.includes(search))) return false;
+    return true;
   });
-  const assignees = Object.values(assigneeMap).sort((a,b)=>
-    (b.신규+b.처리중+b.완료+b.보류) - (a.신규+a.처리중+a.완료+a.보류));
+  page = 1;
+  selectedId = filtered.length ? filtered[0].ts : null;
+  renderAll();
+}
 
-  document.getElementById('content').innerHTML = `
-    <div class="kpis">
-      <div class="kpi"><div class="kpi-label">전체 민원</div><div class="kpi-value">${total}</div></div>
-      <div class="kpi"><div class="kpi-label">처리중</div><div class="kpi-value" style="color:#C08A2E">${inProgress}</div></div>
-      <div class="kpi"><div class="kpi-label">완료율</div><div class="kpi-value" style="color:#3E5C4A">${doneRate}%</div></div>
-      <div class="kpi"><div class="kpi-label">반품방어 담당</div><div class="kpi-value" style="color:#B5502F">${rd}</div></div>
-    </div>
-    <div class="grid2">
-      <div class="card">
-        <div class="card-title">유형별 분포</div>
-        ${typeEntries.map(([name,val]) => `
-          <div class="bar-row">
-            <div class="bar-label">${name}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${val/maxType*100}%; background:${TYPE_COLORS[name]||'#5B6B72'}"></div></div>
-            <div class="bar-value">${val}</div>
-          </div>`).join('') || '<div class="state">데이터 없음</div>'}
-      </div>
-      <div class="card">
-        <div class="card-title">상태별 현황</div>
-        ${statusOrder.map(name => `
-          <div class="bar-row">
-            <div class="bar-label">${name}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${statusCount[name]/maxStatus*100}%; background:${STATUS_COLORS[name]}"></div></div>
-            <div class="bar-value">${statusCount[name]}</div>
-          </div>`).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">담당자별 처리 현황</div>
-      <table>
-        <thead><tr><th>담당자</th><th>팀</th><th style="text-align:right">신규</th><th style="text-align:right">처리중</th><th style="text-align:right">완료</th><th style="text-align:right">보류</th></tr></thead>
-        <tbody>
-          ${assignees.map(a => `
-            <tr>
-              <td>${a.name}</td>
-              <td>${a.team === '반품방어' ? '<span class="tag">🛡 반품방어</span>' : '<span style="color:#5B6B72;font-size:12px">일반CS</span>'}</td>
-              <td style="text-align:right" class="num-신규">${a.신규||0}</td>
-              <td style="text-align:right" class="num-처리중">${a.처리중||0}</td>
-              <td style="text-align:right" class="num-완료">${a.완료||0}</td>
-              <td style="text-align:right" class="num-보류">${a.보류||0}</td>
-            </tr>`).join('') || `<tr><td colspan="6" class="state">표시할 데이터가 없습니다.</td></tr>`}
-        </tbody>
-      </table>
-    </div>
+function renderKpis(){
+  const total = filtered.length;
+  const pending = filtered.filter(c => c.status === '대응 필요').length;
+  const highRisk = filtered.filter(c => c.risk === '고위험').length;
+  const closed = filtered.filter(c => c.status === '종결').length;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">선택 기간 접수</div><div class="kpi-value tabular">${total}</div><div class="kpi-sub">전체 누적 ${allCases.length}건</div></div>
+    <div class="kpi"><div class="kpi-label">미처리 (대응 필요)</div><div class="kpi-value tabular" style="color:var(--danger)">${pending}</div><div class="kpi-sub">${total?Math.round(pending/total*100):0}% of 선택기간</div></div>
+    <div class="kpi"><div class="kpi-label">고위험 VOC</div><div class="kpi-value tabular" style="color:var(--danger)">${highRisk}</div><div class="kpi-sub">${total?Math.round(highRisk/total*100):0}% of 선택기간</div></div>
+    <div class="kpi"><div class="kpi-label">종결</div><div class="kpi-value tabular" style="color:var(--success)">${closed}</div><div class="kpi-sub">${total?Math.round(closed/total*100):0}% of 선택기간</div></div>
   `;
 }
+
+function renderTrend(){
+  const byDate = {};
+  filtered.forEach(c => byDate[c.date] = (byDate[c.date]||0)+1);
+  let dates = Object.keys(byDate).sort();
+  if(dates.length === 0){
+    document.getElementById('trendChart').innerHTML = '<div class="empty">데이터 없음</div>';
+    return;
+  }
+  if(dates.length > 31) dates = dates.slice(-31);
+  const max = Math.max(1, ...dates.map(d=>byDate[d]));
+  document.getElementById('trendChart').innerHTML = dates.map(d => {
+    const val = byDate[d];
+    const h = Math.max(4, val/max*110);
+    const label = d.slice(5).replace('-','/');
+    return `<div class="trend-col">
+      <div class="trend-val">${val}</div>
+      <div class="trend-bar" style="height:${h}px"></div>
+      <div class="trend-label">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function donutHtml(segments, size, hole){
+  const total = segments.reduce((s,x)=>s+x.value,0);
+  let acc = 0;
+  const stops = segments.map(seg => {
+    const start = total? acc/total*360 : 0;
+    acc += seg.value;
+    const end = total? acc/total*360 : 0;
+    return `${seg.color} ${start}deg ${end}deg`;
+  }).join(', ');
+  return `
+    <div class="donut" style="width:${size}px;height:${size}px;background:${total? 'conic-gradient('+stops+')' : 'var(--line-soft)'}">
+      <div class="donut-hole" style="width:${hole}px;height:${hole}px;">${total}</div>
+    </div>`;
+}
+
+function renderDonuts(){
+  const channelCount = {};
+  filtered.forEach(c => channelCount[c.channel] = (channelCount[c.channel]||0)+1);
+  const palette = ['#2954E0','#7C97EC','#B9C8F5','#98A0AB','#1F8A5F'];
+  const channelSegs = Object.entries(channelCount).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
+  document.getElementById('channelDonut').innerHTML = donutHtml(channelSegs, 90, 56) + `
+    <div class="legend">${channelSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
+
+  const high = filtered.filter(c=>c.risk==='고위험').length;
+  const normal = filtered.length - high;
+  const riskSegs = [{name:'고위험',value:high,color:'var(--danger)'},{name:'일반',value:normal,color:'var(--warning)'}];
+  document.getElementById('riskDonut').innerHTML = donutHtml(riskSegs, 90, 56) + `
+    <div class="legend">${riskSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
+}
+
+function renderTypeRank(){
+  const count = {};
+  filtered.forEach(c => count[c.type] = (count[c.type]||0)+1);
+  const entries = Object.entries(count).sort((a,b)=>b[1]-a[1]);
+  const max = Math.max(1, ...entries.map(e=>e[1]));
+  document.getElementById('typeRankTable').innerHTML = `
+    <thead><tr><th></th><th>민원유형</th><th style="text-align:right">건수</th></tr></thead>
+    <tbody>
+      ${entries.map(([name,val],i) => `
+        <tr>
+          <td class="rank-num">${i+1}</td>
+          <td>${name}<div class="mini-bar"><div class="mini-bar-fill" style="width:${val/max*100}%"></div></div></td>
+          <td style="text-align:right" class="tabular">${val}</td>
+        </tr>`).join('') || `<tr><td colspan="3" class="empty">데이터 없음</td></tr>`}
+    </tbody>`;
+}
+
+function renderHeatmap(){
+  const today = kstNow();
+  const days = [];
+  for(let i=89;i>=0;i--){ const d = new Date(today); d.setDate(d.getDate()-i); days.push(fmtDate(d)); }
+  const byDate = {};
+  allCases.forEach(c => byDate[c.date] = (byDate[c.date]||0)+1);
+  const max = Math.max(1, ...days.map(d=>byDate[d]||0));
+  function colorFor(v){
+    if(!v) return 'var(--line-soft)';
+    const ratio = v/max;
+    if(ratio > .75) return 'var(--primary)';
+    if(ratio > .45) return '#7C97EC';
+    if(ratio > .15) return '#B9C8F5';
+    return 'var(--primary-soft)';
+  }
+  const firstDow = new Date(days[0]).getDay();
+  const cells = Array(firstDow).fill(null).concat(days);
+  document.getElementById('heatmap').innerHTML = cells.map(d => {
+    if(!d) return `<div class="heat-cell" style="background:transparent"></div>`;
+    const v = byDate[d]||0;
+    return `<div class="heat-cell" style="background:${colorFor(v)}" title="${d}: ${v}건"></div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const start = (page-1)*PAGE_SIZE;
+  const pageItems = filtered.slice(start, start+PAGE_SIZE);
+  document.getElementById('tbody').innerHTML = pageItems.map((c,i) => `
+    <tr class="${c.ts===selectedId?'selected':''}" onclick="selectCase('${c.ts}')">
+      <td class="tabular" style="color:var(--muted2)">${start+i+1}</td>
+      <td>${c.date.slice(5).replace('-','/')}</td>
+      <td>${c.bizName || '-'}</td>
+      <td>${c.type}</td>
+      <td>${c.channel}</td>
+      <td><span class="tag tag-${c.risk}">${c.risk}</span></td>
+      <td><span class="tag tag-${c.status==='종결'?'종결':'대응'}">${c.status}</span></td>
+    </tr>`).join('') || `<tr><td colspan="7" class="empty">표시할 데이터가 없습니다.</td></tr>`;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  document.getElementById('pagination').innerHTML = `
+    <span class="tabular">${filtered.length? start+1 : 0}-${Math.min(start+PAGE_SIZE, filtered.length)} / ${filtered.length}</span>
+    <button ${page<=1?'disabled':''} onclick="changePage(-1)">‹</button>
+    <button ${page>=totalPages?'disabled':''} onclick="changePage(1)">›</button>
+  `;
+}
+
+function changePage(delta){ page += delta; renderTable(); }
+function selectCase(ts){ selectedId = ts; renderTable(); renderDetail(); }
+
+function bulletsToList(text){
+  if(!text) return '<li style="color:var(--muted2)">내용 없음</li>';
+  return text.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '')).map(l => `<li>${l}</li>`).join('');
+}
+
+function renderDetail(){
+  const c = filtered.find(x => x.ts === selectedId);
+  const wrap = document.getElementById('detailWrap');
+  if(!c){ wrap.innerHTML = `<div class="card detail-panel"><div class="empty">왼쪽 목록에서 항목을 선택하세요.</div></div>`; return; }
+  wrap.innerHTML = `
+    <div class="card detail-panel">
+      <div class="detail-title">${c.bizName || '상호명 미상'}</div>
+      <div style="margin-bottom:14px;"><span class="tag tag-${c.status==='종결'?'종결':'대응'}">${c.status}</span> <span class="tag tag-${c.risk}">${c.risk}</span></div>
+      <div class="detail-row"><div class="k">사업자번호</div><div>${c.bizId || '-'}</div></div>
+      <div class="detail-row"><div class="k">작성자</div><div>${c.author}</div></div>
+      <div class="detail-row"><div class="k">인입채널</div><div>${c.channel}</div></div>
+      <div class="detail-row"><div class="k">상담일시</div><div>${c.consultTime || '-'}</div></div>
+      <div class="detail-row"><div class="k">민원유형</div><div>${c.type}</div></div>
+      <div class="detail-section"><h4>이슈 내용</h4><ul>${bulletsToList(c.issue)}</ul></div>
+      <div class="detail-section"><h4>조치 내용 ${c.actionSummary ? '· ' + c.actionSummary : ''}</h4><ul>${bulletsToList(c.actionDetail)}</ul></div>
+    </div>`;
+}
+
+function populateSelectOptions(){
+  const channels = [...new Set(allCases.map(c=>c.channel))].filter(Boolean);
+  const types = [...new Set(allCases.map(c=>c.type))].filter(Boolean);
+  document.getElementById('fChannel').innerHTML = '<option value="">전체 채널</option>' + channels.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('fType').innerHTML = '<option value="">민원유형</option>' + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function renderAll(){
+  renderKpis();
+  renderTrend();
+  renderDonuts();
+  renderTypeRank();
+  renderTable();
+  renderDetail();
+}
+
+['fChannel','fRisk','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+document.getElementById('fSearch').addEventListener('input', applyFilters);
+
+function layoutSplit(){
+  const split = document.getElementById('mainSplit');
+  split.style.gridTemplateColumns = window.innerWidth >= 980 ? '1.7fr 1fr' : '1fr';
+}
+window.addEventListener('resize', layoutSplit);
 
 fetch('data/complaints.json?_=' + Date.now())
   .then(res => { if(!res.ok) throw new Error('데이터 파일을 찾을 수 없습니다.'); return res.json(); })
   .then(data => {
-    allMessages = data.messages || [];
+    allCases = (data.cases || []).map(c => ({...c, ts: c.ts || c.date}));
     const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleString('ko-KR') : '알 수 없음';
-    document.getElementById('updatedAt').textContent = `마지막 업데이트: ${updated} · 총 ${data.count||0}건 · 개인 식별정보는 저장하지 않습니다.`;
-    render();
+    document.getElementById('updatedAt').textContent = `마지막 업데이트: ${updated} · 누적 ${data.count||0}건`;
+    populateSelectOptions();
+    renderHeatmap();
+    layoutSplit();
+    applyFilters();
   })
   .catch(err => {
     document.getElementById('updatedAt').textContent = '데이터를 불러오지 못했습니다.';
-    document.getElementById('content').innerHTML = `<div class="state">${err.message}<br>GitHub Actions가 아직 한 번도 실행되지 않았을 수 있어요. Actions 탭에서 수동 실행해보세요.</div>`;
+    document.getElementById('kpis').innerHTML = `<div class="empty">${err.message}</div>`;
   });
 </script>
 </body>
