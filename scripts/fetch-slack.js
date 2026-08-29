@@ -81,6 +81,11 @@ const FIELD_LABELS = [
   "현재 상태",
 ];
 
+function cleanLine(line) {
+  // 굵게(*텍스트*), 기울임(_텍스트_) 등 슬랙 서식 기호를 제거하고 비교한다
+  return line.replace(/^[\*_~`>#\-•\s]+/, "").replace(/[\*_~`\s]+$/, "").trim();
+}
+
 function parseWorkflowMessage(text) {
   const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length);
   const result = {};
@@ -91,7 +96,8 @@ function parseWorkflowMessage(text) {
     buffer = [];
   };
   for (const line of lines) {
-    const matched = FIELD_LABELS.find((label) => line.startsWith(label));
+    const cleaned = cleanLine(line);
+    const matched = FIELD_LABELS.find((label) => cleaned.startsWith(label));
     if (matched) {
       flush();
       currentLabel = matched;
