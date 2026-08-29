@@ -399,9 +399,14 @@ function renderDetail(){
       <div class="detail-row"><div class="k">인입채널</div><div>${c.channel}</div></div>
       <div class="detail-row"><div class="k">상담일시</div><div>${c.consultTime || '-'}</div></div>
       <div class="detail-row"><div class="k">민원유형</div><div>${c.type}</div></div>
-      <div class="detail-section"><h4>이슈 내용</h4><ul>${bulletsToList(c.issue)}</ul></div>
+            <div class="detail-section"><h4>이슈 내용</h4><ul>${bulletsToList(c.issue)}</ul></div>
       <div class="detail-section"><h4>조치 내용 ${c.actionSummary ? '· ' + c.actionSummary : ''}</h4><ul>${bulletsToList(c.actionDetail)}</ul></div>
-    </div>`;
+      ${c.finalResult ? `
+      <div class="detail-section">
+        <h4>최종 결과</h4>
+        <div style="font-size:12.5px; font-weight:600; color:var(--success);">${c.finalResult}</div>
+      </div>` : ''}
+    </div>`;;
 }
 
 function populateSelectOptions(){
