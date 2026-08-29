@@ -143,7 +143,7 @@
       <div class="donut-row" id="riskDonut"></div>
     </div>
   </div>
-
+    <div class="row row-tables">
     <div class="row" style="margin-bottom:14px;">
     <div class="card">
       <div class="card-title">보상 진행 현황</div>
@@ -322,6 +322,17 @@ function renderDonuts(){
 }
 
 function renderTypeRank(){
+  function renderCompensationChart(){
+  const count = {};
+  filtered.forEach(c => {
+    const key = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정';
+    count[key] = (count[key]||0)+1;
+  });
+  const palette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C'];
+  const segs = Object.entries(count).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
+  document.getElementById('compChart').innerHTML = donutHtml(segs, 100, 62) + `
+    <div class="legend">${segs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
+}
   const count = {};
   filtered.forEach(c => count[c.type] = (count[c.type]||0)+1);
   const entries = Object.entries(count).sort((a,b)=>b[1]-a[1]);
@@ -427,6 +438,7 @@ function renderAll(){
   renderTrend();
   renderDonuts();
   renderTypeRank();
+  renderCompensationChart();
   renderTable();
   renderDetail();
 }
