@@ -90,7 +90,7 @@
   .tag-일반{background:var(--warning-soft); color:var(--warning);}
   .tag-고위험{background:var(--danger-soft); color:var(--danger);}
   .tag-종결{background:var(--success-soft); color:var(--success);}
-  .tag-대응{background:var(--danger-soft); color:var(--danger);}
+  .tag-진행중{background:var(--danger-soft); color:var(--danger);}
 
   .pagination{display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:10px; font-size:12px; color:var(--muted);}
   .pagination button{border:1px solid var(--line); background:var(--surface); border-radius:6px; width:26px; height:26px; cursor:pointer; color:var(--ink);}
@@ -143,14 +143,16 @@
       <div class="donut-row" id="riskDonut"></div>
     </div>
   </div>
-    <div class="row row-tables">
-    <div class="row" style="margin-bottom:14px;">
+
+  <div class="row" style="margin-bottom:14px;">
     <div class="card">
       <div class="card-title">보상 진행 현황</div>
       <div class="card-sub">최종 결과가 있으면 최종 결과, 없으면 현재 조치 내용 기준</div>
       <div class="donut-row" id="compChart" style="flex-wrap:wrap;"></div>
     </div>
   </div>
+
+  <div class="row row-tables">
     <div class="card">
       <div class="card-title">민원유형별 순위</div>
       <div class="card-sub">선택 기간 내 건수 기준</div>
@@ -259,17 +261,14 @@ function renderKpis(){
   const closed = filtered.filter(c => c.status === '종결').length;
   document.getElementById('kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">선택 기간 접수</div><div class="kpi-value tabular">${total}</div><div class="kpi-sub">전체 누적 ${allCases.length}건</div></div>
-        <div class="kpi">
-      <div class="kpi-label">진행중</div>
-      <div class="kpi-value tabular" style="color:var(--danger)">${pending}</div>
-      <div class="kpi-sub" style="line-height:1.5;">보상 검토 진행중 · 고객 회신 대기 · 연락 불가 등을 포함해요</div>
-    </div>
+    <div class="kpi"><div class="kpi-label">진행중</div><div class="kpi-value tabular" style="color:var(--danger)">${pending}</div><div class="kpi-sub">보상 검토 진행중 · 고객 회신 대기 · 연락 불가 등을 포함해요</div></div>
     <div class="kpi"><div class="kpi-label">고위험 VOC</div><div class="kpi-value tabular" style="color:var(--danger)">${highRisk}</div><div class="kpi-sub">${total?Math.round(highRisk/total*100):0}% of 선택기간</div></div>
     <div class="kpi"><div class="kpi-label">종결</div><div class="kpi-value tabular" style="color:var(--success)">${closed}</div><div class="kpi-sub">${total?Math.round(closed/total*100):0}% of 선택기간</div></div>
   `;
 }
 
 function renderTrend(){
+  // 선택 기간 내 날짜별 집계, 날짜가 31개 넘으면 최근 31개만
   const byDate = {};
   filtered.forEach(c => byDate[c.date] = (byDate[c.date]||0)+1);
   let dates = Object.keys(byDate).sort();
@@ -322,18 +321,6 @@ function renderDonuts(){
 }
 
 function renderTypeRank(){
-}
-function renderCompensationChart(){
-  const count = {};
-  filtered.forEach(c => {
-    const key = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정';
-    count[key] = (count[key]||0)+1;
-  });
-  const palette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C'];
-  const segs = Object.entries(count).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
-  document.getElementById('compChart').innerHTML = donutHtml(segs, 100, 62) + `
-    <div class="legend">${segs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
-}
   const count = {};
   filtered.forEach(c => count[c.type] = (count[c.type]||0)+1);
   const entries = Object.entries(count).sort((a,b)=>b[1]-a[1]);
@@ -348,6 +335,18 @@ function renderCompensationChart(){
           <td style="text-align:right" class="tabular">${val}</td>
         </tr>`).join('') || `<tr><td colspan="3" class="empty">데이터 없음</td></tr>`}
     </tbody>`;
+}
+
+function renderCompensationChart(){
+  const count = {};
+  filtered.forEach(c => {
+    const key = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정';
+    count[key] = (count[key]||0)+1;
+  });
+  const palette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C'];
+  const segs = Object.entries(count).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
+  document.getElementById('compChart').innerHTML = donutHtml(segs, 100, 62) + `
+    <div class="legend">${segs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
 }
 
 function renderHeatmap(){
@@ -365,6 +364,7 @@ function renderHeatmap(){
     if(ratio > .15) return '#B9C8F5';
     return 'var(--primary-soft)';
   }
+  // 첫 주 빈칸 채우기 (일요일 시작 기준)
   const firstDow = new Date(days[0]).getDay();
   const cells = Array(firstDow).fill(null).concat(days);
   document.getElementById('heatmap').innerHTML = cells.map(d => {
@@ -385,7 +385,7 @@ function renderTable(){
       <td>${c.type}</td>
       <td>${c.channel}</td>
       <td><span class="tag tag-${c.risk}">${c.risk}</span></td>
-      <td><span class="tag tag-${c.status==='종결'?'종결':'대응'}">${c.status}</span></td>
+      <td><span class="tag tag-${c.status==='종결'?'종결':'진행중'}">${c.status}</span></td>
     </tr>`).join('') || `<tr><td colspan="7" class="empty">표시할 데이터가 없습니다.</td></tr>`;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -411,20 +411,20 @@ function renderDetail(){
   wrap.innerHTML = `
     <div class="card detail-panel">
       <div class="detail-title">${c.bizName || '상호명 미상'}</div>
-      <div style="margin-bottom:14px;"><span class="tag tag-${c.status==='종결'?'종결':'대응'}">${c.status}</span> <span class="tag tag-${c.risk}">${c.risk}</span></div>
+      <div style="margin-bottom:14px;"><span class="tag tag-${c.status==='종결'?'종결':'진행중'}">${c.status}</span> <span class="tag tag-${c.risk}">${c.risk}</span></div>
       <div class="detail-row"><div class="k">사업자번호</div><div>${c.bizId || '-'}</div></div>
       <div class="detail-row"><div class="k">작성자</div><div>${c.author}</div></div>
       <div class="detail-row"><div class="k">인입채널</div><div>${c.channel}</div></div>
       <div class="detail-row"><div class="k">상담일시</div><div>${c.consultTime || '-'}</div></div>
       <div class="detail-row"><div class="k">민원유형</div><div>${c.type}</div></div>
-            <div class="detail-section"><h4>이슈 내용</h4><ul>${bulletsToList(c.issue)}</ul></div>
+      <div class="detail-section"><h4>이슈 내용</h4><ul>${bulletsToList(c.issue)}</ul></div>
       <div class="detail-section"><h4>조치 내용 ${c.actionSummary ? '· ' + c.actionSummary : ''}</h4><ul>${bulletsToList(c.actionDetail)}</ul></div>
       ${c.finalResult ? `
       <div class="detail-section">
         <h4>최종 결과</h4>
         <div style="font-size:12.5px; font-weight:600; color:var(--success);">${c.finalResult}</div>
       </div>` : ''}
-    </div>`;;
+    </div>`;
 }
 
 function populateSelectOptions(){
@@ -447,6 +447,7 @@ function renderAll(){
 ['fChannel','fRisk','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('fSearch').addEventListener('input', applyFilters);
 
+// 화면 폭에 따라 표+상세 레이아웃 조정
 function layoutSplit(){
   const split = document.getElementById('mainSplit');
   split.style.gridTemplateColumns = window.innerWidth >= 980 ? '1.7fr 1fr' : '1fr';
