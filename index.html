@@ -641,20 +641,32 @@ function renderAuthorRank(){
 // ---- 주차별 추이 차트 (전체 데이터 기준, 상단 기간 선택과는 별개) ----
 const TREND_PALETTE = ['#d64545','#e8a33d','#1f8a5f','#2f6fed','#5b4fc4','#c14fa0','#98A0AB'];
 
-function weekLabel(dateStr){
+// 금요일 시작 ~ 목요일 종료 기준 주차
+function weekStart(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
-  const month = d.getMonth() + 1;
-  const week = Math.ceil(d.getDate() / 7);
-  return `${month}/${week}주`;
+  const day = d.getDay(); // 0=일 ... 5=금 6=토
+  const diffFromFri = (day - 5 + 7) % 7; // 이번 주 금요일로부터 며칠 지났는지
+  const start = new Date(d);
+  start.setDate(d.getDate() - diffFromFri);
+  return start;
+}
+
+function weekLabel(dateStr){
+  const start = weekStart(dateStr);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6); // 금요일 + 6일 = 목요일
+  const sm = start.getMonth() + 1, sd = start.getDate();
+  const em = end.getMonth() + 1, ed = end.getDate();
+  return sm === em ? `${sm}/${sd}-${ed}` : `${sm}/${sd}-${em}/${ed}`;
 }
 
 function orderedWeeks(cases){
-  const seen = new Map(); // label -> 대표 date (정렬용)
+  const seen = new Map(); // label -> 주 시작일(Date, 정렬용)
   cases.forEach(c => {
     const label = weekLabel(c.date);
-    if(!seen.has(label) || c.date < seen.get(label)) seen.set(label, c.date);
+    if(!seen.has(label)) seen.set(label, weekStart(c.date));
   });
-  return [...seen.entries()].sort((a,b)=> a[1] < b[1] ? -1 : 1).map(e=>e[0]);
+  return [...seen.entries()].sort((a,b)=> a[1] - b[1]).map(e=>e[0]);
 }
 
 function buildShareDatasets(cases, keyFn, topN){
