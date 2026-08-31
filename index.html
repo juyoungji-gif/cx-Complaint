@@ -144,11 +144,16 @@
     </div>
   </div>
 
-  <div class="row" style="margin-bottom:14px;">
+  <div class="row row-trend" style="margin-bottom:14px;">
     <div class="card">
       <div class="card-title">보상 진행 현황</div>
       <div class="card-sub">최종 결과가 있으면 최종 결과, 없으면 현재 조치 내용 기준</div>
       <div class="donut-row" id="compChart" style="flex-wrap:wrap;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">작성자별 접수 현황</div>
+      <div class="card-sub">선택 기간 내 건수 기준</div>
+      <table class="rank-table" id="authorRankTable"></table>
     </div>
   </div>
 
@@ -180,6 +185,7 @@
           <select id="fChannel"><option value="">전체 채널</option></select>
           <select id="fRisk"><option value="">리스크 강도</option><option value="일반">일반</option><option value="고위험">고위험</option></select>
           <select id="fType"><option value="">민원유형</option></select>
+          <select id="fAuthor"><option value="">작성자</option></select>
           <select id="fStatus"><option value="">현재 상태</option><option value="종결">종결</option><option value="진행중">진행중</option></select>
           <input type="text" id="fSearch" placeholder="상호명, 사업자번호 검색">
         </div>
@@ -236,6 +242,7 @@ function applyFilters(){
   const channel = document.getElementById('fChannel').value;
   const risk = document.getElementById('fRisk').value;
   const type = document.getElementById('fType').value;
+  const author = document.getElementById('fAuthor').value;
   const status = document.getElementById('fStatus').value;
   const search = document.getElementById('fSearch').value.trim();
 
@@ -245,6 +252,7 @@ function applyFilters(){
     if(channel && c.channel !== channel) return false;
     if(risk && c.risk !== risk) return false;
     if(type && c.type !== type) return false;
+    if(author && c.author !== author) return false;
     if(status && c.status !== status) return false;
     if(search && !(c.bizName.includes(search) || c.bizId.includes(search))) return false;
     return true;
@@ -430,8 +438,27 @@ function renderDetail(){
 function populateSelectOptions(){
   const channels = [...new Set(allCases.map(c=>c.channel))].filter(Boolean);
   const types = [...new Set(allCases.map(c=>c.type))].filter(Boolean);
+  const authors = [...new Set(allCases.map(c=>c.author))].filter(Boolean).sort();
   document.getElementById('fChannel').innerHTML = '<option value="">전체 채널</option>' + channels.map(c=>`<option value="${c}">${c}</option>`).join('');
   document.getElementById('fType').innerHTML = '<option value="">민원유형</option>' + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+  document.getElementById('fAuthor').innerHTML = '<option value="">작성자</option>' + authors.map(a=>`<option value="${a}">${a}</option>`).join('');
+}
+
+function renderAuthorRank(){
+  const count = {};
+  filtered.forEach(c => count[c.author] = (count[c.author]||0)+1);
+  const entries = Object.entries(count).sort((a,b)=>b[1]-a[1]);
+  const max = Math.max(1, ...entries.map(e=>e[1]));
+  document.getElementById('authorRankTable').innerHTML = `
+    <thead><tr><th></th><th>작성자</th><th style="text-align:right">건수</th></tr></thead>
+    <tbody>
+      ${entries.map(([name,val],i) => `
+        <tr>
+          <td class="rank-num">${i+1}</td>
+          <td>${name}<div class="mini-bar"><div class="mini-bar-fill" style="width:${val/max*100}%"></div></div></td>
+          <td style="text-align:right" class="tabular">${val}</td>
+        </tr>`).join('') || `<tr><td colspan="3" class="empty">데이터 없음</td></tr>`}
+    </tbody>`;
 }
 
 function renderAll(){
@@ -440,11 +467,12 @@ function renderAll(){
   renderDonuts();
   renderTypeRank();
   renderCompensationChart();
+  renderAuthorRank();
   renderTable();
   renderDetail();
 }
 
-['fChannel','fRisk','fType','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+['fChannel','fRisk','fType','fAuthor','fStatus'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('fSearch').addEventListener('input', applyFilters);
 
 // 화면 폭에 따라 표+상세 레이아웃 조정
