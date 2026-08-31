@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>민원 대응 대시보드 · iShopCare</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#EEF0F4; --surface:#FFFFFF; --line:#E1E4EA; --line-soft:#EDEFF3;
@@ -157,9 +158,31 @@
     </div>
   </div>
 
+  <div class="row row-tables" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">민원 접수 카테고리별 비중 추이</div>
+      <div class="card-sub">주차별 · 민원유형이 그 주 전체에서 차지하는 비율(%)</div>
+      <canvas id="typeTrendChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">보상 접수 현황 카테고리별 비중 추이</div>
+      <div class="card-sub">주차별 · 최종 결과(없으면 조치 내용) 비율(%)</div>
+      <canvas id="compTrendChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">전체 접수건 추이 · 전주 대비 증감율</div>
+      <div class="card-sub">주차별 전체 접수 건수와 직전 주 대비 증감률</div>
+      <canvas id="totalTrendChart" height="140"></canvas>
+      <table class="rank-table" id="totalTrendTable" style="margin-top:14px;"></table>
+    </div>
+  </div>
+
   <div class="row row-tables">
     <div class="card">
-      <div class="card-title">민원유형별 순위</div>
+      <div class="card-title">전체 민원 접수 현황</div>
       <div class="card-sub">선택 기간 내 건수 기준</div>
       <table class="rank-table" id="typeRankTable"></table>
     </div>
@@ -326,6 +349,13 @@ function renderDonuts(){
   const riskSegs = [{name:'고위험',value:high,color:'var(--danger)'},{name:'일반',value:normal,color:'var(--warning)'}];
   document.getElementById('riskDonut').innerHTML = donutHtml(riskSegs, 90, 56) + `
     <div class="legend">${riskSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
+
+  const authorCount = {};
+  filtered.forEach(c => authorCount[c.author] = (authorCount[c.author]||0)+1);
+  const authorPalette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C','#5B4FC4','#C14FA0'];
+  const authorSegs = Object.entries(authorCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,value],i)=>({name,value,color:authorPalette[i%authorPalette.length]}));
+  document.getElementById('authorDonut').innerHTML = donutHtml(authorSegs, 90, 56) + `
+    <div class="legend">${authorSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
 }
 
 function renderTypeRank(){
@@ -351,10 +381,45 @@ function renderCompensationChart(){
     const key = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정';
     count[key] = (count[key]||0)+1;
   });
+  const total = filtered.length;
   const palette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C'];
-  const segs = Object.entries(count).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
-  document.getElementById('compChart').innerHTML = donutHtml(segs, 100, 62) + `
-    <div class="legend">${segs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
+  const segs = Object.entries(count).sort((a,b)=>b[1]-a[1]).map(([name,value],i)=>({name,value,color:palette[i%palette.length]}));
+  const legendHtml = segs.map(s => {
+    const pct = total ? Math.round(s.value/total*100) : 0;
+    return `
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span class="dot" style="background:${s.color}; width:11px; height:11px;"></span>
+        <span style="flex:1; font-size:13.5px; font-weight:600;">${s.name}</span>
+        <span style="font-size:13px; color:var(--muted); width:60px; text-align:right;" class="tabular">${s.value}건 · ${pct}%</span>
+      </div>`;
+  }).join('') || '<div class="empty">데이터 없음</div>';
+
+  document.getElementById('compChart').innerHTML = `
+    <div style="display:flex; align-items:center; gap:32px; flex-wrap:wrap;">
+      ${donutHtmlBig(segs, 190, 118, total)}
+      <div style="flex:1; min-width:220px;">${legendHtml}</div>
+    </div>`;
+}
+
+function donutHtmlBig(segments, size, hole, total){
+  let acc = 0;
+  const sum = segments.reduce((s,x)=>s+x.value,0);
+  const stops = segments.map(seg => {
+    const start = sum? acc/sum*360 : 0;
+    acc += seg.value;
+    const end = sum? acc/sum*360 : 0;
+    return `${seg.color} ${start}deg ${end}deg`;
+  }).join(', ');
+  return `
+    <div style="width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;
+      background:${sum? 'conic-gradient('+stops+')' : 'var(--line-soft)'};
+      display:flex;align-items:center;justify-content:center;">
+      <div style="width:${hole}px;height:${hole}px;border-radius:50%;background:var(--surface);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div style="font-size:28px;font-weight:800;">${total}</div>
+        <div style="font-size:11px;color:var(--muted);">전체 건수</div>
+      </div>
+    </div>`;
 }
 
 function renderHeatmap(){
@@ -461,6 +526,121 @@ function renderAuthorRank(){
     </tbody>`;
 }
 
+// ---- 주차별 추이 차트 (전체 데이터 기준, 상단 기간 선택과는 별개) ----
+const TREND_PALETTE = ['#d64545','#e8a33d','#1f8a5f','#2f6fed','#5b4fc4','#c14fa0','#98A0AB'];
+
+function weekLabel(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const month = d.getMonth() + 1;
+  const week = Math.ceil(d.getDate() / 7);
+  return `${month}월 ${week}주차`;
+}
+
+function orderedWeeks(cases){
+  const seen = new Map(); // label -> 대표 date (정렬용)
+  cases.forEach(c => {
+    const label = weekLabel(c.date);
+    if(!seen.has(label) || c.date < seen.get(label)) seen.set(label, c.date);
+  });
+  return [...seen.entries()].sort((a,b)=> a[1] < b[1] ? -1 : 1).map(e=>e[0]);
+}
+
+function buildShareDatasets(cases, keyFn, topN){
+  const weeks = orderedWeeks(cases);
+  const totalPerWeek = {};
+  const keyCountPerWeek = {}; // week -> {key: count}
+  const overallCount = {};
+
+  cases.forEach(c => {
+    const w = weekLabel(c.date);
+    const k = keyFn(c) || '기타';
+    totalPerWeek[w] = (totalPerWeek[w]||0) + 1;
+    keyCountPerWeek[w] = keyCountPerWeek[w] || {};
+    keyCountPerWeek[w][k] = (keyCountPerWeek[w][k]||0) + 1;
+    overallCount[k] = (overallCount[k]||0) + 1;
+  });
+
+  const topKeys = Object.entries(overallCount).sort((a,b)=>b[1]-a[1]).slice(0, topN).map(e=>e[0]);
+
+  const datasets = topKeys.map((k, i) => ({
+    label: k,
+    data: weeks.map(w => {
+      const total = totalPerWeek[w] || 0;
+      const cnt = (keyCountPerWeek[w] && keyCountPerWeek[w][k]) || 0;
+      return total ? Math.round((cnt/total)*1000)/10 : 0;
+    }),
+    borderColor: TREND_PALETTE[i % TREND_PALETTE.length],
+    backgroundColor: TREND_PALETTE[i % TREND_PALETTE.length],
+    tension: 0.35,
+    borderWidth: 2,
+    pointRadius: 4,
+    fill: false,
+  }));
+
+  return { weeks, datasets };
+}
+
+let typeTrendChartInstance, compTrendChartInstance, totalTrendChartInstance;
+
+function renderTrendCharts(){
+  if(typeof Chart === 'undefined') return; // CDN 로드 실패 시 조용히 스킵
+
+  // 1) 민원 접수 카테고리별 비중 추이
+  const typeData = buildShareDatasets(allCases, c => c.type, 6);
+  if(typeTrendChartInstance) typeTrendChartInstance.destroy();
+  typeTrendChartInstance = new Chart(document.getElementById('typeTrendChart'), {
+    type: 'line',
+    data: { labels: typeData.weeks, datasets: typeData.datasets },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+      scales: { y: { ticks: { callback: v => v + '%' } } },
+    }
+  });
+
+  // 2) 보상 접수 카테고리별 비중 추이
+  const compData = buildShareDatasets(allCases, c => (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정', 6);
+  if(compTrendChartInstance) compTrendChartInstance.destroy();
+  compTrendChartInstance = new Chart(document.getElementById('compTrendChart'), {
+    type: 'line',
+    data: { labels: compData.weeks, datasets: compData.datasets },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+      scales: { y: { ticks: { callback: v => v + '%' } } },
+    }
+  });
+
+  // 3) 전체 접수건 추이 + 전주 대비 증감율
+  const weeks = orderedWeeks(allCases);
+  const totalPerWeek = {};
+  allCases.forEach(c => { const w = weekLabel(c.date); totalPerWeek[w] = (totalPerWeek[w]||0)+1; });
+  const counts = weeks.map(w => totalPerWeek[w] || 0);
+  const growthRates = counts.map((v,i) => i===0 ? null : (counts[i-1] ? Math.round(((v-counts[i-1])/counts[i-1])*1000)/10 : null));
+
+  if(totalTrendChartInstance) totalTrendChartInstance.destroy();
+  totalTrendChartInstance = new Chart(document.getElementById('totalTrendChart'), {
+    type: 'bar',
+    data: {
+      labels: weeks,
+      datasets: [{ label: '접수 건수', data: counts, backgroundColor: '#2954E0', borderRadius: 4 }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    }
+  });
+
+  document.getElementById('totalTrendTable').innerHTML = `
+    <thead><tr><th>주차</th><th style="text-align:right">건수</th><th style="text-align:right">전주 대비</th></tr></thead>
+    <tbody>
+      ${weeks.map((w,i) => {
+        const rate = growthRates[i];
+        const rateText = rate === null ? '-' : (rate > 0 ? `+${rate}%` : `${rate}%`);
+        const color = rate === null ? 'var(--muted)' : (rate > 0 ? 'var(--danger)' : rate < 0 ? 'var(--success)' : 'var(--muted)');
+        return `<tr><td>${w}</td><td style="text-align:right" class="tabular">${counts[i]}</td><td style="text-align:right; color:${color}; font-weight:700;">${rateText}</td></tr>`;
+      }).join('')}
+    </tbody>`;
+}
+
 function renderAll(){
   renderKpis();
   renderTrend();
@@ -490,6 +670,7 @@ fetch('data/complaints.json?_=' + Date.now())
     document.getElementById('updatedAt').textContent = `마지막 업데이트: ${updated} · 누적 ${data.count||0}건`;
     populateSelectOptions();
     renderHeatmap();
+    renderTrendCharts();
     layoutSplit();
     applyFilters();
   })
