@@ -43,6 +43,7 @@
   .row{display:grid; grid-template-columns:1fr; gap:14px; margin-bottom:14px;}
   @media(min-width:960px){.row-trend{grid-template-columns:2fr 1fr;}}
   @media(min-width:960px){.row-tables{grid-template-columns:1fr 1.6fr;}}
+  @media(min-width:960px){.row-trio{grid-template-columns:repeat(3,1fr);}}
 
   .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px;}
   .card-title{font-size:13px; font-weight:700; margin-bottom:2px;}
@@ -105,6 +106,9 @@
   .detail-section h4{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:0 0 8px; font-weight:700;}
   .detail-section ul{margin:0; padding-left:16px; font-size:12.5px; line-height:1.65;}
   .empty{color:var(--muted2); font-size:13px; text-align:center; padding:30px;}
+
+  .tab-btn{background:none; border:none; padding:10px 4px; margin-right:22px; font-size:14px; font-weight:700; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;}
+  .tab-btn.active{color:var(--primary); border-bottom-color:var(--primary);}
 </style>
 </head>
 <body>
@@ -129,19 +133,44 @@
     </div>
   </div>
 
+  <div class="tabbar" style="display:flex; gap:6px; margin-bottom:18px; border-bottom:1px solid var(--line); padding-bottom:0;">
+    <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">종합 현황</button>
+    <button class="tab-btn" data-tab="returnDefense" onclick="switchTab('returnDefense')">반품방어 분석</button>
+  </div>
+
+  <div id="tabOverview">
   <div class="kpis" id="kpis"></div>
 
-  <div class="row row-trend">
+  <div class="row row-trio" style="margin-bottom:14px;">
     <div class="card">
-      <div class="card-title">일자별 접수 추이</div>
-      <div class="card-sub" id="trendSub">선택 기간 내 일별 건수</div>
-      <div class="trend-chart" id="trendChart"></div>
+      <div class="card-title">전체 접수건 추이 · 전주 대비 증감율</div>
+      <div class="card-sub">주차별 전체 접수 건수와 직전 주 대비 증감률</div>
+      <canvas id="totalTrendChart" height="140"></canvas>
+      <table class="rank-table" id="totalTrendTable" style="margin-top:14px;"></table>
+    </div>
+    <div class="card">
+      <div class="card-title">작성자별 접수 현황</div>
+      <div class="card-sub">선택 기간 내 건수 기준</div>
+      <table class="rank-table" id="authorRankTable"></table>
     </div>
     <div class="card">
       <div class="card-title">채널 · 리스크 분포</div>
       <div class="card-sub">인입채널 / 리스크 강도</div>
       <div class="donut-row" id="channelDonut" style="margin-bottom:16px;"></div>
       <div class="donut-row" id="riskDonut"></div>
+    </div>
+  </div>
+
+  <div class="row row-tables" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">전체 민원 접수 현황</div>
+      <div class="card-sub">선택 기간 내 건수 기준</div>
+      <table class="rank-table" id="typeRankTable"></table>
+    </div>
+    <div class="card">
+      <div class="card-title">민원 접수 카테고리별 비중 추이</div>
+      <div class="card-sub">주차별 · 민원유형이 그 주 전체에서 차지하는 비율(%)</div>
+      <canvas id="typeTrendChart" height="220"></canvas>
     </div>
   </div>
 
@@ -152,39 +181,17 @@
       <div class="donut-row" id="compChart" style="flex-wrap:wrap;"></div>
     </div>
     <div class="card">
-      <div class="card-title">작성자별 접수 현황</div>
-      <div class="card-sub">선택 기간 내 건수 기준</div>
-      <table class="rank-table" id="authorRankTable"></table>
-    </div>
-  </div>
-
-  <div class="row row-tables" style="margin-bottom:14px;">
-    <div class="card">
-      <div class="card-title">민원 접수 카테고리별 비중 추이</div>
-      <div class="card-sub">주차별 · 민원유형이 그 주 전체에서 차지하는 비율(%)</div>
-      <canvas id="typeTrendChart" height="220"></canvas>
-    </div>
-    <div class="card">
       <div class="card-title">보상 접수 현황 카테고리별 비중 추이</div>
       <div class="card-sub">주차별 · 최종 결과(없으면 조치 내용) 비율(%)</div>
       <canvas id="compTrendChart" height="220"></canvas>
     </div>
   </div>
 
-  <div class="row" style="margin-bottom:14px;">
-    <div class="card">
-      <div class="card-title">전체 접수건 추이 · 전주 대비 증감율</div>
-      <div class="card-sub">주차별 전체 접수 건수와 직전 주 대비 증감률</div>
-      <canvas id="totalTrendChart" height="140"></canvas>
-      <table class="rank-table" id="totalTrendTable" style="margin-top:14px;"></table>
-    </div>
-  </div>
-
   <div class="row row-tables">
     <div class="card">
-      <div class="card-title">전체 민원 접수 현황</div>
-      <div class="card-sub">선택 기간 내 건수 기준</div>
-      <table class="rank-table" id="typeRankTable"></table>
+      <div class="card-title">일자별 접수 추이</div>
+      <div class="card-sub" id="trendSub">선택 기간 내 일별 건수</div>
+      <div class="trend-chart" id="trendChart"></div>
     </div>
     <div class="card">
       <div class="card-title">최근 90일 접수 히트맵</div>
@@ -221,6 +228,39 @@
             <div class="pagination" id="pagination"></div>
           </div>
           <div id="detailWrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="tabReturnDefense" style="display:none;">
+    <div class="row row-trend" style="margin-bottom:14px;">
+      <div class="card">
+        <div class="card-title">반품방어율</div>
+        <div class="card-sub">반품/교환 종결 건 기준 · 스레드 최종결과에 "무상반품"이 없으면 방어 성공으로 집계</div>
+        <div id="defenseRateBox"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">방어 성공 vs 무상반품 진행</div>
+        <div class="card-sub">반품/교환 종결 건 분포</div>
+        <div class="donut-row" id="defenseDonut"></div>
+      </div>
+    </div>
+    <div class="row row-tables">
+      <div class="card">
+        <div class="card-title">반품/교환 주요 사유</div>
+        <div class="card-sub">이슈 내용 키워드 기반 자동 분류 (참고용)</div>
+        <table class="rank-table" id="returnReasonTable"></table>
+      </div>
+      <div class="card">
+        <div class="card-title">반품/교환 접수 목록</div>
+        <div class="card-sub">상호명 · 사유 · 최종결과</div>
+        <div style="max-height:420px; overflow:auto;">
+          <table class="main" id="returnListTable">
+            <thead><tr><th>접수일</th><th>상호명</th><th>사유(요약)</th><th>결과</th></tr></thead>
+            <tbody id="returnListBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -500,6 +540,86 @@ function populateSelectOptions(){
   document.getElementById('fChannel').innerHTML = '<option value="">전체 채널</option>' + channels.map(c=>`<option value="${c}">${c}</option>`).join('');
   document.getElementById('fType').innerHTML = '<option value="">민원유형</option>' + types.map(t=>`<option value="${t}">${t}</option>`).join('');
   document.getElementById('fAuthor').innerHTML = '<option value="">작성자</option>' + authors.map(a=>`<option value="${a}">${a}</option>`).join('');
+}
+
+function switchTab(tab){
+  document.getElementById('tabOverview').style.display = tab === 'overview' ? '' : 'none';
+  document.getElementById('tabReturnDefense').style.display = tab === 'returnDefense' ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if(tab === 'returnDefense') renderReturnDefenseTab();
+}
+
+const RETURN_REASON_RULES = [
+  { label: '단순 변심', pattern: /변심|마음이\s*바뀌/ },
+  { label: '포스/프로그램 오류', pattern: /포스|프로그램|오작동|오류/ },
+  { label: '가격/비용 불만', pattern: /가격|비용|수수료|요금/ },
+  { label: '설치/사용 문제', pattern: /설치|사용법|작동\s*안|사용\s*불편/ },
+  { label: '품질/하자', pattern: /불량|하자|파손/ },
+  { label: '정책/약관 불만', pattern: /약관|정책|위약금/ },
+];
+
+function classifyReturnReason(issueText){
+  const text = issueText || '';
+  const found = RETURN_REASON_RULES.find(r => r.pattern.test(text));
+  return found ? found.label : '기타';
+}
+
+function isReturnExchangeType(type){
+  return (type || '').replace(/\s/g, '') === '반품/교환';
+}
+
+function renderReturnDefenseTab(){
+  const returnCases = allCases.filter(c => isReturnExchangeType(c.type));
+  const closedCases = returnCases.filter(c => c.status === '종결');
+
+  const withResult = closedCases.map(c => {
+    const resultText = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '';
+    const isFreeReturn = /무상\s*반품/.test(resultText);
+    return { ...c, resultText, isFreeReturn };
+  });
+
+  const freeReturnCount = withResult.filter(c => c.isFreeReturn).length;
+  const defendedCount = withResult.length - freeReturnCount;
+  const rate = withResult.length ? Math.round((defendedCount / withResult.length) * 1000) / 10 : 0;
+
+  document.getElementById('defenseRateBox').innerHTML = `
+    <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:14px;">
+      <div style="font-size:44px; font-weight:800; color:var(--success);" class="tabular">${rate}%</div>
+      <div style="font-size:12.5px; color:var(--muted);">반품/교환 종결 ${withResult.length}건 중 방어 ${defendedCount}건</div>
+    </div>
+    <div style="font-size:12px; color:var(--muted2);">
+      전체 반품/교환 접수 ${returnCases.length}건 · 종결 ${closedCases.length}건 · 진행중 ${returnCases.length - closedCases.length}건
+    </div>`;
+
+  const defenseSegs = [
+    { name: '방어 성공', value: defendedCount, color: 'var(--success)' },
+    { name: '무상반품 진행', value: freeReturnCount, color: 'var(--danger)' },
+  ];
+  document.getElementById('defenseDonut').innerHTML = donutHtml(defenseSegs, 100, 62) + `
+    <div class="legend">${defenseSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
+
+  const reasonCount = {};
+  returnCases.forEach(c => { const r = classifyReturnReason(c.issue); reasonCount[r] = (reasonCount[r]||0)+1; });
+  const reasonEntries = Object.entries(reasonCount).sort((a,b)=>b[1]-a[1]);
+  const reasonMax = Math.max(1, ...reasonEntries.map(e=>e[1]));
+  document.getElementById('returnReasonTable').innerHTML = `
+    <thead><tr><th></th><th>사유</th><th style="text-align:right">건수</th></tr></thead>
+    <tbody>
+      ${reasonEntries.map(([name,val],i) => `
+        <tr>
+          <td class="rank-num">${i+1}</td>
+          <td>${name}<div class="mini-bar"><div class="mini-bar-fill" style="width:${val/reasonMax*100}%"></div></div></td>
+          <td style="text-align:right" class="tabular">${val}</td>
+        </tr>`).join('') || `<tr><td colspan="3" class="empty">데이터 없음</td></tr>`}
+    </tbody>`;
+
+  document.getElementById('returnListBody').innerHTML = returnCases
+    .slice().sort((a,b)=> b.date < a.date ? -1 : 1)
+    .map(c => {
+      const resultText = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || (c.status === '종결' ? '-' : '진행중');
+      const reason = classifyReturnReason(c.issue);
+      return `<tr><td>${c.date.slice(5).replace('-','/')}</td><td>${c.bizName||'-'}</td><td>${reason}</td><td>${resultText}</td></tr>`;
+    }).join('') || `<tr><td colspan="4" class="empty">반품/교환 데이터가 없습니다.</td></tr>`;
 }
 
 function renderAuthorRank(){
