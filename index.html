@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>민원 대응 대시보드 · iShopCare</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#EEF0F4; --surface:#FFFFFF; --line:#E1E4EA; --line-soft:#EDEFF3;
@@ -145,7 +144,7 @@
     <div class="card">
       <div class="card-title">전체 접수건 추이 · 전주 대비 증감율</div>
       <div class="card-sub">주차별 전체 접수 건수와 직전 주 대비 증감률</div>
-      <canvas id="totalTrendChart" height="140"></canvas>
+      <div id="totalTrendChart"></div>
       <table class="rank-table" id="totalTrendTable" style="margin-top:14px;"></table>
     </div>
     <div class="card">
@@ -170,7 +169,7 @@
     <div class="card">
       <div class="card-title">민원 접수 카테고리별 비중 추이</div>
       <div class="card-sub">주차별 · 민원유형이 그 주 전체에서 차지하는 비율(%)</div>
-      <canvas id="typeTrendChart" height="220"></canvas>
+      <div id="typeTrendChart"></div>
     </div>
   </div>
 
@@ -183,7 +182,7 @@
     <div class="card">
       <div class="card-title">보상 접수 현황 카테고리별 비중 추이</div>
       <div class="card-sub">주차별 · 최종 결과(없으면 조치 내용) 비율(%)</div>
-      <canvas id="compTrendChart" height="220"></canvas>
+      <div id="compTrendChart"></div>
     </div>
   </div>
 
@@ -693,34 +692,55 @@ function buildShareDatasets(cases, keyFn, topN){
   return { weeks, datasets };
 }
 
-let typeTrendChartInstance, compTrendChartInstance, totalTrendChartInstance;
+let typeTrendChartInstance, compTrendChartInstance, totalTrendChartInstance; // 더 이상 Chart.js 인스턴스 아님, 자리만 유지
+
+function svgLineChart(weeks, datasets){
+  const width = 640, height = 220, padL = 34, padR = 12, padT = 14, padB = 26;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const xAt = (i) => padL + (weeks.length > 1 ? (i / (weeks.length - 1)) * plotW : plotW / 2);
+  const yAt = (v) => padT + (1 - Math.max(0, Math.min(100, v)) / 100) * plotH;
+
+  const gridLines = [0, 25, 50, 75, 100].map(v => `
+    <line x1="${padL}" y1="${yAt(v)}" x2="${width-padR}" y2="${yAt(v)}" stroke="var(--line)" stroke-width="1" />
+    <text x="${padL-6}" y="${yAt(v)+4}" font-size="10" fill="var(--muted)" text-anchor="end">${v}%</text>
+  `).join('');
+
+  const xLabels = weeks.map((w,i) => `<text x="${xAt(i)}" y="${height-6}" font-size="10" fill="var(--muted)" text-anchor="middle">${w}</text>`).join('');
+
+  const lines = datasets.map(ds => {
+    const points = ds.data.map((v,i) => `${xAt(i)},${yAt(v)}`).join(' ');
+    const dots = ds.data.map((v,i) => `<circle cx="${xAt(i)}" cy="${yAt(v)}" r="3.5" fill="${ds.color}" />`).join('');
+    return `<polyline points="${points}" fill="none" stroke="${ds.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />${dots}`;
+  }).join('');
+
+  const legend = datasets.map(ds => `
+    <div style="display:inline-flex; align-items:center; gap:6px; margin-right:14px; margin-bottom:6px; font-size:12px;">
+      <span class="dot" style="background:${ds.color};"></span>${ds.label}
+    </div>`).join('');
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">
+      ${gridLines}
+      ${lines}
+      ${xLabels}
+    </svg>
+    <div style="margin-top:8px;">${legend || '<span class="empty">데이터 없음</span>'}</div>`;
+}
 
 function renderTrendCharts(){
-  if(typeof Chart === 'undefined') return; // CDN 로드 실패 시 조용히 스킵
-
   // 1) 민원 접수 카테고리별 비중 추이
   const typeData = buildShareDatasets(allCases, c => c.type, 6);
-  if(typeTrendChartInstance) typeTrendChartInstance.destroy();
-  typeTrendChartInstance = new Chart(document.getElementById('typeTrendChart'), {
-    type: 'line',
-    data: { labels: typeData.weeks, datasets: typeData.datasets },
-    options: {
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
-      scales: { y: { ticks: { callback: v => v + '%' } } },
-    }
-  });
+  document.getElementById('typeTrendChart').innerHTML = svgLineChart(
+    typeData.weeks,
+    typeData.datasets.map((d,i)=>({ label: d.label, data: d.data, color: TREND_PALETTE[i % TREND_PALETTE.length] }))
+  );
 
   // 2) 보상 접수 카테고리별 비중 추이
   const compData = buildShareDatasets(allCases, c => (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정', 6);
-  if(compTrendChartInstance) compTrendChartInstance.destroy();
-  compTrendChartInstance = new Chart(document.getElementById('compTrendChart'), {
-    type: 'line',
-    data: { labels: compData.weeks, datasets: compData.datasets },
-    options: {
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
-      scales: { y: { ticks: { callback: v => v + '%' } } },
-    }
-  });
+  document.getElementById('compTrendChart').innerHTML = svgLineChart(
+    compData.weeks,
+    compData.datasets.map((d,i)=>({ label: d.label, data: d.data, color: TREND_PALETTE[i % TREND_PALETTE.length] }))
+  );
 
   // 3) 전체 접수건 추이 + 전주 대비 증감율
   const weeks = orderedWeeks(allCases);
@@ -728,19 +748,17 @@ function renderTrendCharts(){
   allCases.forEach(c => { const w = weekLabel(c.date); totalPerWeek[w] = (totalPerWeek[w]||0)+1; });
   const counts = weeks.map(w => totalPerWeek[w] || 0);
   const growthRates = counts.map((v,i) => i===0 ? null : (counts[i-1] ? Math.round(((v-counts[i-1])/counts[i-1])*1000)/10 : null));
+  const maxCount = Math.max(1, ...counts);
 
-  if(totalTrendChartInstance) totalTrendChartInstance.destroy();
-  totalTrendChartInstance = new Chart(document.getElementById('totalTrendChart'), {
-    type: 'bar',
-    data: {
-      labels: weeks,
-      datasets: [{ label: '접수 건수', data: counts, backgroundColor: '#2954E0', borderRadius: 4 }]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-    }
-  });
+  document.getElementById('totalTrendChart').innerHTML = `
+    <div class="trend-chart">
+      ${weeks.map((w,i) => `
+        <div class="trend-col">
+          <div class="trend-val">${counts[i]}</div>
+          <div class="trend-bar" style="height:${Math.max(4, counts[i]/maxCount*110)}px"></div>
+          <div class="trend-label">${w}</div>
+        </div>`).join('') || '<div class="empty">데이터 없음</div>'}
+    </div>`;
 
   document.getElementById('totalTrendTable').innerHTML = `
     <thead><tr><th>주차</th><th style="text-align:right">건수</th><th style="text-align:right">전주 대비</th></tr></thead>
