@@ -237,12 +237,12 @@
     <div class="row row-trend" style="margin-bottom:14px;">
       <div class="card">
         <div class="card-title">반품방어율</div>
-        <div class="card-sub">반품/교환 종결 건 기준 · 최종결과(또는 조치 내용)에 "반품"이 없으면 방어 성공으로 집계</div>
+        <div class="card-sub">선택 기간 · 결과에 "반품" 또는 "위약금 전액면제"가 없으면 성공(고객 재연락 대기 등 포함), 있으면 미성공으로 집계</div>
         <div id="defenseRateBox"></div>
       </div>
       <div class="card">
-        <div class="card-title">방어 성공 vs 반품 진행</div>
-        <div class="card-sub">반품/교환 종결 건 분포</div>
+        <div class="card-title">성공 vs 미성공</div>
+        <div class="card-sub">선택 기간 반품/교환 건 분포</div>
         <div class="donut-row" id="defenseDonut"></div>
       </div>
     </div>
@@ -254,10 +254,10 @@
       </div>
       <div class="card">
         <div class="card-title">반품/교환 접수 목록</div>
-        <div class="card-sub">상호명 · 사유 · 최종결과</div>
+        <div class="card-sub">상호명 · 사유 · 판정 · 결과</div>
         <div style="max-height:420px; overflow:auto;">
           <table class="main" id="returnListTable">
-            <thead><tr><th>접수일</th><th>상호명</th><th>사유(요약)</th><th>결과</th></tr></thead>
+            <thead><tr><th>접수일</th><th>상호명</th><th>사유(요약)</th><th>판정</th><th>결과</th></tr></thead>
             <tbody id="returnListBody"></tbody>
           </table>
         </div>
@@ -568,31 +568,29 @@ function isReturnExchangeType(type){
 }
 
 function renderReturnDefenseTab(){
-  const returnCases = allCases.filter(c => isReturnExchangeType(c.type));
-  const closedCases = returnCases.filter(c => c.status === '종결');
+  const returnCases = filtered.filter(c => isReturnExchangeType(c.type));
 
-  const withResult = closedCases.map(c => {
+  const withResult = returnCases.map(c => {
     const resultText = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '';
-    const isFreeReturn = /반품/.test(resultText); // "반품", "무상반품", "반품 유연화" 등 반품이 언급되면 실제 진행으로 판단
-    return { ...c, resultText, isFreeReturn };
+    // "반품" 또는 "위약금 전액면제"가 언급되면 실제 반품이 진행된 것으로 판단, 그 외(고객 재연락 대기 등 포함)는 전부 방어 성공
+    const isReturnHappened = /반품|위약금\s*전액\s*면제/.test(resultText);
+    return { ...c, resultText, isReturnHappened };
   });
 
-  const freeReturnCount = withResult.filter(c => c.isFreeReturn).length;
-  const defendedCount = withResult.length - freeReturnCount;
-  const rate = withResult.length ? Math.round((defendedCount / withResult.length) * 1000) / 10 : 0;
+  const failCount = withResult.filter(c => c.isReturnHappened).length;
+  const successCount = withResult.length - failCount;
+  const rate = withResult.length ? Math.round((successCount / withResult.length) * 1000) / 10 : 0;
 
   document.getElementById('defenseRateBox').innerHTML = `
     <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:14px;">
       <div style="font-size:44px; font-weight:800; color:var(--success);" class="tabular">${rate}%</div>
-      <div style="font-size:12.5px; color:var(--muted);">반품/교환 종결 ${withResult.length}건 중 방어 ${defendedCount}건</div>
+      <div style="font-size:12.5px; color:var(--muted);">선택 기간 반품/교환 ${withResult.length}건 중 성공 ${successCount}건</div>
     </div>
-    <div style="font-size:12px; color:var(--muted2);">
-      전체 반품/교환 접수 ${returnCases.length}건 · 종결 ${closedCases.length}건 · 진행중 ${returnCases.length - closedCases.length}건
-    </div>`;
+    <div style="font-size:12px; color:var(--muted2);">미성공(반품 진행) ${failCount}건</div>`;
 
   const defenseSegs = [
-    { name: '방어 성공', value: defendedCount, color: 'var(--success)' },
-    { name: '반품 진행', value: freeReturnCount, color: 'var(--danger)' },
+    { name: '성공', value: successCount, color: 'var(--success)' },
+    { name: '미성공', value: failCount, color: 'var(--danger)' },
   ];
   document.getElementById('defenseDonut').innerHTML = donutHtml(defenseSegs, 100, 62) + `
     <div class="legend">${defenseSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
@@ -612,13 +610,15 @@ function renderReturnDefenseTab(){
         </tr>`).join('') || `<tr><td colspan="3" class="empty">데이터 없음</td></tr>`}
     </tbody>`;
 
-  document.getElementById('returnListBody').innerHTML = returnCases
+  document.getElementById('returnListBody').innerHTML = withResult
     .slice().sort((a,b)=> b.date < a.date ? -1 : 1)
     .map(c => {
-      const resultText = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || (c.status === '종결' ? '-' : '진행중');
       const reason = classifyReturnReason(c.issue);
-      return `<tr><td>${c.date.slice(5).replace('-','/')}</td><td>${c.bizName||'-'}</td><td>${reason}</td><td>${resultText}</td></tr>`;
-    }).join('') || `<tr><td colspan="4" class="empty">반품/교환 데이터가 없습니다.</td></tr>`;
+      const badge = c.isReturnHappened
+        ? `<span class="tag tag-고위험">미성공</span>`
+        : `<span class="tag tag-종결">성공</span>`;
+      return `<tr><td>${c.date.slice(5).replace('-','/')}</td><td>${c.bizName||'-'}</td><td>${reason}</td><td>${badge}</td><td>${c.resultText || '-'}</td></tr>`;
+    }).join('') || `<tr><td colspan="5" class="empty">선택 기간 내 반품/교환 데이터가 없습니다.</td></tr>`;
 }
 
 function renderAuthorRank(){
@@ -792,6 +792,7 @@ function renderAll(){
   renderCompensationChart();
   renderAuthorRank();
   renderTrendCharts();
+  renderReturnDefenseTab();
   renderTable();
   renderDetail();
 }
