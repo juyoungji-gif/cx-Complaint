@@ -237,11 +237,11 @@
     <div class="row row-trend" style="margin-bottom:14px;">
       <div class="card">
         <div class="card-title">반품방어율</div>
-        <div class="card-sub">반품/교환 종결 건 기준 · 스레드 최종결과에 "무상반품"이 없으면 방어 성공으로 집계</div>
+        <div class="card-sub">반품/교환 종결 건 기준 · 최종결과(또는 조치 내용)에 "반품"이 없으면 방어 성공으로 집계</div>
         <div id="defenseRateBox"></div>
       </div>
       <div class="card">
-        <div class="card-title">방어 성공 vs 무상반품 진행</div>
+        <div class="card-title">방어 성공 vs 반품 진행</div>
         <div class="card-sub">반품/교환 종결 건 분포</div>
         <div class="donut-row" id="defenseDonut"></div>
       </div>
@@ -573,7 +573,7 @@ function renderReturnDefenseTab(){
 
   const withResult = closedCases.map(c => {
     const resultText = (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '';
-    const isFreeReturn = /무상\s*반품/.test(resultText);
+    const isFreeReturn = /반품/.test(resultText); // "반품", "무상반품", "반품 유연화" 등 반품이 언급되면 실제 진행으로 판단
     return { ...c, resultText, isFreeReturn };
   });
 
@@ -592,7 +592,7 @@ function renderReturnDefenseTab(){
 
   const defenseSegs = [
     { name: '방어 성공', value: defendedCount, color: 'var(--success)' },
-    { name: '무상반품 진행', value: freeReturnCount, color: 'var(--danger)' },
+    { name: '반품 진행', value: freeReturnCount, color: 'var(--danger)' },
   ];
   document.getElementById('defenseDonut').innerHTML = donutHtml(defenseSegs, 100, 62) + `
     <div class="legend">${defenseSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
@@ -645,7 +645,7 @@ function weekLabel(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
   const month = d.getMonth() + 1;
   const week = Math.ceil(d.getDate() / 7);
-  return `${month}월 ${week}주차`;
+  return `${month}/${week}주`;
 }
 
 function orderedWeeks(cases){
@@ -729,23 +729,23 @@ function svgLineChart(weeks, datasets){
 
 function renderTrendCharts(){
   // 1) 민원 접수 카테고리별 비중 추이
-  const typeData = buildShareDatasets(allCases, c => c.type, 6);
+  const typeData = buildShareDatasets(filtered, c => c.type, 6);
   document.getElementById('typeTrendChart').innerHTML = svgLineChart(
     typeData.weeks,
     typeData.datasets.map((d,i)=>({ label: d.label, data: d.data, color: TREND_PALETTE[i % TREND_PALETTE.length] }))
   );
 
   // 2) 보상 접수 카테고리별 비중 추이
-  const compData = buildShareDatasets(allCases, c => (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정', 6);
+  const compData = buildShareDatasets(filtered, c => (c.finalResult && c.finalResult.trim()) || (c.actionSummary && c.actionSummary.trim()) || '미정', 6);
   document.getElementById('compTrendChart').innerHTML = svgLineChart(
     compData.weeks,
     compData.datasets.map((d,i)=>({ label: d.label, data: d.data, color: TREND_PALETTE[i % TREND_PALETTE.length] }))
   );
 
   // 3) 전체 접수건 추이 + 전주 대비 증감율
-  const weeks = orderedWeeks(allCases);
+  const weeks = orderedWeeks(filtered);
   const totalPerWeek = {};
-  allCases.forEach(c => { const w = weekLabel(c.date); totalPerWeek[w] = (totalPerWeek[w]||0)+1; });
+  filtered.forEach(c => { const w = weekLabel(c.date); totalPerWeek[w] = (totalPerWeek[w]||0)+1; });
   const counts = weeks.map(w => totalPerWeek[w] || 0);
   const growthRates = counts.map((v,i) => i===0 ? null : (counts[i-1] ? Math.round(((v-counts[i-1])/counts[i-1])*1000)/10 : null));
   const maxCount = Math.max(1, ...counts);
@@ -779,6 +779,7 @@ function renderAll(){
   renderTypeRank();
   renderCompensationChart();
   renderAuthorRank();
+  renderTrendCharts();
   renderTable();
   renderDetail();
 }
@@ -801,7 +802,6 @@ fetch('data/complaints.json?_=' + Date.now())
     document.getElementById('updatedAt').textContent = `마지막 업데이트: ${updated} · 누적 ${data.count||0}건`;
     populateSelectOptions();
     renderHeatmap();
-    renderTrendCharts();
     layoutSplit();
     applyFilters();
   })
