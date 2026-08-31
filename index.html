@@ -349,13 +349,6 @@ function renderDonuts(){
   const riskSegs = [{name:'고위험',value:high,color:'var(--danger)'},{name:'일반',value:normal,color:'var(--warning)'}];
   document.getElementById('riskDonut').innerHTML = donutHtml(riskSegs, 90, 56) + `
     <div class="legend">${riskSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('')}</div>`;
-
-  const authorCount = {};
-  filtered.forEach(c => authorCount[c.author] = (authorCount[c.author]||0)+1);
-  const authorPalette = ['#2954E0','#7C97EC','#B9C8F5','#F4C669','#E38B4B','#98A0AB','#1F8A5F','#D9483C','#5B4FC4','#C14FA0'];
-  const authorSegs = Object.entries(authorCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([name,value],i)=>({name,value,color:authorPalette[i%authorPalette.length]}));
-  document.getElementById('authorDonut').innerHTML = donutHtml(authorSegs, 90, 56) + `
-    <div class="legend">${authorSegs.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.name} ${s.value}건</div>`).join('') || '<div class="empty">데이터 없음</div>'}</div>`;
 }
 
 function renderTypeRank(){
