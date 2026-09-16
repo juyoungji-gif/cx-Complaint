@@ -1,9 +1,25 @@
 {
-  "updatedAt": "2026-09-15T23:39:30.854Z",
+  "updatedAt": "2026-09-16T04:07:05.690Z",
   "channel": "ishopcare_민원공유",
   "year": "2026",
-  "count": 445,
+  "count": 446,
   "cases": [
+    {
+      "ts": "1789518183.303429",
+      "date": "2026-09-16",
+      "bizId": "6139208351 예삐꽃방",
+      "bizName": "",
+      "author": "김현지",
+      "channel": "채팅",
+      "consultTime": "<https://channel.works/ishopcare/user-chats/>예삐꽃방-6aa230ff7b4dae8a8acb",
+      "risk": "일반",
+      "type": "반품 / 교환",
+      "issue": "• 2026-09-10 채팅으로 반품 요청 문의로 인입\n• 우리카드 미가맹 매장으로 우리카드만 신규 가맹 등록 진행되었으나 최초 인입 당시 반품시 우리카드 가맹비 수취 안내X\n• 2026-09-14 회수 완료",
+      "actionSummary": "해당 없음 (직접 기재)",
+      "actionDetail": "우리카드 가맹비 면제",
+      "status": "종결",
+      "finalResult": ""
+    },
     {
       "ts": "1789468235.830109",
       "date": "2026-09-15",
